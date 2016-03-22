@@ -1,8 +1,8 @@
-# Dockerfile demo
+# Consul
 #
 # VERSION 0.1
 
-FROM ubuntu
+FROM progrium/consul
 MAINTAINER Adam Kulisek <akulisek@gmail.com>
 
 ENV SOME_ENV_VAR 0.0.0.1

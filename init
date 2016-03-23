@@ -1,0 +1,41 @@
+#################################
+# init script
+#################################
+# init variables
+
+DS_VM="discovery-service-vm" 
+VM_0="docker-0"
+VM_1="docker-1"
+VM_2="docker-2"
+NETWORK_NAME="private-network"
+PROXY="proxy"
+SD="consul"
+NODE="busybox"
+  
+#################################
+
+# making new docker virtual machine with discovery service with virtualbox driver
+docker-machine create -d virtualbox $DS_VM
+
+#change to $DS_VM
+eval $(docker-machine env $DS_VM)
+
+#run consul docker container 
+docker run -d -p "8500:8500" -h $SD progrium/consul -server -bootstrap
+	
+#run new virtual machines
+docker-machine create -d virtualbox --engine-opt="cluster-store=consul://$(docker-machine ip $DS_VM):8500" --engine-opt="cluster-advertise=eth1:0" $VM_0 
+docker-machine create -d virtualbox --engine-opt="cluster-store=consul://$(docker-machine ip $DS_VM):8500" --engine-opt="cluster-advertise=eth1:0" $VM_1
+docker-machine create -d virtualbox --engine-opt="cluster-store=consul://$(docker-machine ip $DS_VM):8500" --engine-opt="cluster-advertise=eth1:0" $VM_2
+
+#set overlayer network
+eval $(docker-machine env $VM_1)
+docker network create -d overlay $NETWORK_NAME
+
+#run nginx container
+eval $(docker-machine env $VM_2)
+docker run -itd --name=$PROXY --net=$NETWORK_NAME nginx
+
+#run busybox container
+eval $(docker-machine env $VM_3)
+docker run -it --rm --net=$NETWORK_NAME $NODE wget http://$PROXY

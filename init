@@ -3,14 +3,15 @@
 #################################
 # init variables
 
-DS_VM="discovery-service-vm" 
-VM_0="docker-0"
-VM_1="docker-1"
-VM_2="docker-2"
+DS_VM="docker-SD" 
+VM_1="sm-docker-0"
+VM_2="docker-1"
 NETWORK_NAME="private-network"
+NETWORK="192.168.99.0/24"
 PROXY="proxy"
 SD="consul"
-NODE="busybox"
+NODE="java_instance"
+NODE_IMAGE="java_image"
   
 #################################
 
@@ -21,21 +22,21 @@ docker-machine create -d virtualbox $DS_VM
 eval $(docker-machine env $DS_VM)
 
 #run consul docker container 
-docker run -d -p "8500:8500" -h $SD progrium/consul -server -bootstrap
-	
-#run new virtual machines
-docker-machine create -d virtualbox --engine-opt="cluster-store=consul://$(docker-machine ip $DS_VM):8500" --engine-opt="cluster-advertise=eth1:0" $VM_0 
-docker-machine create -d virtualbox --engine-opt="cluster-store=consul://$(docker-machine ip $DS_VM):8500" --engine-opt="cluster-advertise=eth1:0" $VM_1
-docker-machine create -d virtualbox --engine-opt="cluster-store=consul://$(docker-machine ip $DS_VM):8500" --engine-opt="cluster-advertise=eth1:0" $VM_2
+docker run -d -p "8400:8400" -p "8500:8500" -p "8600:53/udp"  --name $SD progrium/consul -server -bootstrap -ui-dir /ui 
+docker run -d --name=registrator --net=host --volume=/var/run/docker.sock:/tmp/docker.sock gliderlabs/registrator:latest consul://$(docker-machine ip $DS_VM):8500
 
-#set overlayer network
+#run new virtual machines swarm and host
+docker-machine create -d virtualbox --swarm --swarm-master --swarm-discovery="consul://$(docker-machine ip $DS_VM):8500" --engine-opt="cluster-store=consul://$(docker-machine ip $DS_VM):8500" --engine-opt="cluster-advertise=eth1:2376" $VM_1 
+docker-machine create -d virtualbox --swarm --swarm-discovery="consul://$(docker-machine ip $DS_VM):8500" --engine-opt="cluster-store=consul://$(docker-machine ip $DS_VM):8500" --engine-opt="cluster-advertise=eth1:0" $VM_2
+
+#set overlayer network and run nginx
 eval $(docker-machine env $VM_1)
-docker network create -d overlay $NETWORK_NAME
+docker network create --subnet=$NETWORK -d overlay $NETWORK_NAME 
+docker run -itd --name=$PROXY --net=$NETWORK_NAME --env="constraint:node==$VM_1" nginx
 
-#run nginx container
+#run node container
 eval $(docker-machine env $VM_2)
-docker run -itd --name=$PROXY --net=$NETWORK_NAME nginx
-
-#run busybox container
-eval $(docker-machine env $VM_3)
-docker run -it --rm --net=$NETWORK_NAME $NODE wget http://$PROXY
+docker build -t $NODE_IMAGE ./DatabaseNode/
+docker run  -itd --net=$NETWORK_NAME --name "$NODE"1 --env="constraint:node==$VM_2" $NODE_IMAGE
+docker run  -itd --net=$NETWORK_NAME --name "$NODE"2 --env="constraint:node==$VM_2" $NODE_IMAGE 
+docker run  -itd --net=$NETWORK_NAME --name "$NODE"3 --env="constraint:node==$VM_2" $NODE_IMAGE 

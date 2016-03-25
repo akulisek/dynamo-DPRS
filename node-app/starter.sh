@@ -1,0 +1,1 @@
+rsyslogd && catalina.sh run

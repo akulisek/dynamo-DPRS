@@ -1,5 +1,10 @@
-FROM java:7-jre
+FROM java:7-jdk
+#rsyslog
+RUN apt-get update
+RUN apt-get -y -q install rsyslog
+ADD test.conf /etc/rsyslog.d/test.conf
 
+#tomcat
 ENV CATALINA_HOME /usr/local/tomcat
 ENV PATH $CATALINA_HOME/bin:$PATH
 RUN mkdir -p "$CATALINA_HOME"
@@ -25,7 +30,7 @@ RUN set -ex \
 	done
 
 ENV TOMCAT_MAJOR 8
-ENV TOMCAT_VERSION 8.0.32
+ENV TOMCAT_VERSION 8.0.33
 ENV TOMCAT_TGZ_URL https://www.apache.org/dist/tomcat/tomcat-$TOMCAT_MAJOR/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz
 
 RUN set -x \
@@ -54,7 +59,13 @@ WORKDIR /usr/local/dynamo-node-webapp
 
 RUN mvn package
 RUN cp /usr/local/dynamo-node-webapp/target/dynamo-node-webapp.war /usr/local/tomcat/webapps/dynamo-node-webapp.war
-	
+
+
+
 EXPOSE 8080
+EXPOSE 514/tcp 514/udp
+
 WORKDIR $CATALINA_HOME
-CMD ["catalina.sh", "run"]
+
+ADD starter.sh /tmp/starter.sh
+CMD sh /tmp/starter.sh

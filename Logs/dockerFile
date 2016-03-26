@@ -1,0 +1,5 @@
+FROM logstash:latest
+
+ADD logstash.conf /opt/logstash/conf.d/logstash.conf
+
+EXPOSE 10345

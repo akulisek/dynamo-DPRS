@@ -12,3 +12,11 @@ Added init script whitch start machines, plus modified Dockerfile for nodes
 TODO:
 -use Consul-Template for updating proxy config when new container joins (or leaves) the network.
 -create dummy applications that will be run on DataNodes with simple REST APIs
+
+### 27.3
+Init and Uninstall script polished andissues with java_image containers (registrator ignored them) fixed.
+Dummy Java applications have been created under node-app folder. 
+
+TODO and IN_PROGRESS:
+-Consul-Template integration (proxy conf update in consul)
+-rsyslog / ELK stack integration

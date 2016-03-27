@@ -32,11 +32,13 @@ docker-machine create -d virtualbox --swarm --swarm-discovery="consul://$(docker
 #set overlayer network and run nginx
 eval $(docker-machine env $VM_1)
 docker network create --subnet=$NETWORK -d overlay $NETWORK_NAME 
-docker run -itd --name=$PROXY --net=$NETWORK_NAME --env="constraint:node==$VM_1" nginx
+docker run -d --name=registrator --net=host --volume=/var/run/docker.sock:/tmp/docker.sock gliderlabs/registrator:latest consul://$(docker-machine ip $DS_VM):8500
+docker run -itd -p 8080:80 --name=$PROXY --net=$NETWORK_NAME --env="constraint:node==$VM_1" nginx
 
 #run node container
 eval $(docker-machine env $VM_2)
-docker build -t $NODE_IMAGE ./DatabaseNode/
+docker build -t $NODE_IMAGE ./node-app/
+docker run -d --name=registrator --net=host --volume=/var/run/docker.sock:/tmp/docker.sock gliderlabs/registrator:latest consul://$(docker-machine ip $DS_VM):8500
 docker run  -itd --net=$NETWORK_NAME --name "$NODE"1 --env="constraint:node==$VM_2" $NODE_IMAGE
 docker run  -itd --net=$NETWORK_NAME --name "$NODE"2 --env="constraint:node==$VM_2" $NODE_IMAGE 
 docker run  -itd --net=$NETWORK_NAME --name "$NODE"3 --env="constraint:node==$VM_2" $NODE_IMAGE 

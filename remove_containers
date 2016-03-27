@@ -1,0 +1,7 @@
+##########################################
+# Script for force removing running containers
+##########################################
+
+eval $(docker-machine env --swarm sm-docker-0)
+docker rm -f $(docker ps --format "{{.Names}}")
+

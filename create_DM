@@ -8,7 +8,7 @@ DS_VM="docker-SD"
 if [ $# -eq 1 ]; then
    docker-machine create -d virtualbox --swarm --swarm-discovery="consul://$(docker-machine ip $DS_VM):8500" --engine-opt="cluster-store=consul://$(docker-machine ip $DS_VM):8500" --engine-opt="cluster-advertise=eth1:0" $1
    eval $(docker-machine env $1)
-   docker run -d --name=registrator --net=host --volume=/var/run/docker.sock:/tmp/docker.sock gliderlabs/registrator:latest consul://$(docker-machine ip $DS_VM):8500
+   docker run -d --name=registrator --net=host --volume=/var/run/docker.sock:/tmp/docker.sock gliderlabs/registrator:latest -ip $(docker-machine ip $1) consul://$(docker-machine ip $DS_VM):8500
 else
   echo "Usage: create_DM [name]"
 fi

@@ -38,20 +38,22 @@ docker-machine create -d virtualbox --swarm --swarm-discovery="consul://$DS_IP:8
 #set overlayer network and run nginx
 eval $(docker-machine env $VM_1)
 docker network create --subnet=$NETWORK -d overlay $NETWORK_NAME 
-docker run -d --name=registrator --net=host --volume=/var/run/docker.sock:/tmp/docker.sock gliderlabs/registrator:latest -ip $(docker-machine ip $VM_1) consul://$DS_IP:8500
-docker run -itd -p 8080:80 --name=$PROXY --net=$NETWORK_NAME --env="constraint:node==$VM_1" nginx
+docker run -d -v /var/run/docker.sock:/tmp/docker.sock --net=$NETWORK_NAME -h registrator --name registratorSW1 kidibox/registrator -internal consul://$DS_IP:8500
+docker build -t ng --build-arg CONSUL=$(docker-machine ip $DS_VM) ./nginx/
+docker run -itd -p 80:80 --name=$PROXY --net=$NETWORK_NAME --env="constraint:node==$VM_1" ng
+
 
 #run log container
 eval $(docker-machine env $LOG_VM)
 LOG_IP=$(docker-machine ip $LOG_VM)
 docker build -t $LOG_IMAGE ./Logs/
-docker run -d --name=registrator --net=host --volume=/var/run/docker.sock:/tmp/docker.sock gliderlabs/registrator:latest -ip $LOG_IP consul://$DS_IP:8500
+docker run -d -v /var/run/docker.sock:/tmp/docker.sock --net=$NETWORK_NAME -h registrator --name registratorSW2 kidibox/registrator -internal consul://$DS_IP:8500
 docker run -itd -p 10345 --net=$NETWORK_NAME --name "$LOG_INSTANCE"1 --env="constraint:node==$LOG_VM" -e CONSUL_IP=$DS_IP -e LOG_HOST_IP=$LOG_IP $LOG_IMAGE
 
 #run node container
 eval $(docker-machine env $VM_2)
 docker build -t $NODE_IMAGE ./node-app/
-docker run -d --name=registrator --net=host --volume=/var/run/docker.sock:/tmp/docker.sock gliderlabs/registrator:latest -ip $(docker-machine ip $VM_2) consul://$DS_IP:8500
+docker run -d -v /var/run/docker.sock:/tmp/docker.sock --net=$NETWORK_NAME -h registrator --name registratorSW3 kidibox/registrator -internal consul://$DS_IP:8500
 docker run  -itd -p 514/udp -p 514/tcp -p 8080 --net=$NETWORK_NAME --name "$NODE"1 --env="constraint:node==$VM_2" -e CONSUL_IP=$DS_IP $NODE_IMAGE
 docker run  -itd -p 514/udp -p 514/tcp -p 8080 --net=$NETWORK_NAME --name "$NODE"2 --env="constraint:node==$VM_2" -e CONSUL_IP=$DS_IP $NODE_IMAGE 
 docker run  -itd -p 514/udp -p 514/tcp -p 8080 --net=$NETWORK_NAME --name "$NODE"3 --env="constraint:node==$VM_2" -e CONSUL_IP=$DS_IP $NODE_IMAGE 

@@ -13,8 +13,8 @@ PROXY="proxy"
 SD="consul"
 NODE="java_instance"
 NODE_IMAGE="java_image"
-LOG_IMAGE="ELK_image"
-LOG_INSTANCE="ELK_instance"
+LOG_IMAGE="elk_image"
+LOG_INSTANCE="elk_instance"
   
 #################################
 

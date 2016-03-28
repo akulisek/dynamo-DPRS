@@ -1,2 +1,2 @@
 run with parameters
--p 10345:10345 %container_name% -f /opt/logstash/conf.d/logstash.conf
+-p 8080:80 -p 10345:10345 -e CONSUL_IP=$DS_IP -e LOG_HOST_IP=$LOG_I_ %container_name% 

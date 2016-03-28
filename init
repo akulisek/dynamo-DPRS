@@ -46,7 +46,7 @@ eval $(docker-machine env $LOG_VM)
 LOG_IP=$(docker-machine ip $LOG_VM)
 docker build -t $LOG_IMAGE ./Logs/
 docker run -d --name=registrator --net=host --volume=/var/run/docker.sock:/tmp/docker.sock gliderlabs/registrator:latest -ip $LOG_IP consul://$DS_IP:8500
-docker run -itd -p 10345 --net=$NETWORK_NAME --name "$LOG_INSTANCE"1 --env="constraint:node==$LOG_VM" -e CONSUL_IP=$DS_IP -e LOG_HOST_IP=$LOG_IP $LOG_IMAGE
+docker run -itd -p 10345 -p 8080:80 --net=$NETWORK_NAME --name "$LOG_INSTANCE"1 --env="constraint:node==$LOG_VM" -e CONSUL_IP=$DS_IP -e LOG_HOST_IP=$LOG_IP $LOG_IMAGE
 
 #run node container
 eval $(docker-machine env $VM_2)

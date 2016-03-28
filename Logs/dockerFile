@@ -1,5 +1,8 @@
-FROM logstash:latest
+FROM willdurand/elk:latest
 
-ADD logstash.conf /opt/logstash/conf.d/logstash.conf
+ADD ./logstash.conf etc/logstash/logstash.conf
+ADD starter.sh /tmp/starter.sh
 
 EXPOSE 10345
+
+CMD sh /tmp/starter.sh

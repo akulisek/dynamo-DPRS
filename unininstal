@@ -1,7 +1,0 @@
-######################################
-# Uninstal script
-######################################
-
-eval $(docker-machine env default)
-# Delete all vm machines minus default virtual machine
-docker-machine rm $(docker-machine ls| cut -d' ' -f 1|grep -E -i -v "default|name")

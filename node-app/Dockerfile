@@ -68,4 +68,6 @@ EXPOSE 514/tcp 514/udp
 WORKDIR $CATALINA_HOME
 
 ADD starter.sh /tmp/starter.sh
+RUN chmod 777 /tmp/starter.sh
+
 CMD sh /tmp/starter.sh

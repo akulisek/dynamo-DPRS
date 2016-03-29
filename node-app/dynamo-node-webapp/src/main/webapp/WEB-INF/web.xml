@@ -15,4 +15,7 @@
         <servlet-name>Dynamo-REST-WS</servlet-name>
         <url-pattern>/dynamo/*</url-pattern>
     </servlet-mapping>
+    <listener>
+       <listener-class>sk.stuba.fiit.ContextListener</listener-class>
+    </listener>
 </web-app>

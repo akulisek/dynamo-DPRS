@@ -8,7 +8,7 @@ Repository for FIIT STU class (DPRS) project
     <img src="http://cdn.rancher.com/wp-content/uploads/2016/03/11015408/consul-logo-square-100x100.png" alt="Consul"/>
   </a>
 <br>
-  <a href="https://nginx.org/en/">
+  <a href="https://www.nginx.com/resources/wiki/">
     <img src="https://community.logentries.com/wp-content/uploads/2014/11/nginx-pack-icon.png" alt="NGINX"/>
   </a>
   <a href="https://www.elastic.co/webinars/introduction-elk-stack">
@@ -64,7 +64,7 @@ TODO:
 Dynamo
 
 ### 29.3
-We have successfully finished integrating ELK stack into our system. Logs are being centralized, Kibana is set up (displays logs), we have created single "not-yet-REST-API" method ($PROXY_IP/dynamo-node-webapp/dynamo/hello/$USER_INPUT) which responds with "Hello $USER_INPUT!" from one of the java app containers. We use Consul's key-value store only for storing logserver's IP atm.
+We have successfully finished integrating ELK stack into our system. Logs are being centralized, Kibana is set up (displays logs), we have created single REST API method ($PROXY_IP/dynamo-node-webapp/dynamo/hello/$USER_INPUT) which responds with "Hello $USER_INPUT!" from one of the java app containers. We use Consul's key-value store only for storing logserver's IP atm.
 
 TODO:
 Dynamo

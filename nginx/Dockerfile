@@ -12,4 +12,4 @@ ADD start.sh /bin/start.sh
 ADD templates/service.ctmpl /templates/
 
 RUN service nginx start
-CMD /bin/sh
+CMD ["/bin/sh","/bin/start.sh"]

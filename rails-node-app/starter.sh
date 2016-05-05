@@ -10,4 +10,5 @@ sed -i "s/172.17.0.2/$IP/g" /etc/rsyslog.d/test.conf
 echo "change directory"
 cd /home/rails/webapp
 echo "start rails server"
+export SECRET_KEY_BASE=$(bundle exec rake secret)
 rails server --binding 0.0.0.0

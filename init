@@ -15,6 +15,8 @@ NODE="java_instance"
 NODE_IMAGE="java_image"
 LOG_IMAGE="elk_image"
 LOG_INSTANCE="elk_instance"
+RAILS_NODE="rails-webapp"
+RAILS_NODE_IMAGE="rails-image"
   
 #################################
 
@@ -57,3 +59,9 @@ docker run -d -v /var/run/docker.sock:/tmp/docker.sock --net=$NETWORK_NAME -h re
 docker run  -itd -p 514/udp -p 514/tcp -p 8080 --net=$NETWORK_NAME --name "$NODE"1 --env="constraint:node==$VM_2" -e CONSUL_IP=$DS_IP $NODE_IMAGE
 docker run  -itd -p 514/udp -p 514/tcp -p 8080 --net=$NETWORK_NAME --name "$NODE"2 --env="constraint:node==$VM_2" -e CONSUL_IP=$DS_IP $NODE_IMAGE 
 docker run  -itd -p 514/udp -p 514/tcp -p 8080 --net=$NETWORK_NAME --name "$NODE"3 --env="constraint:node==$VM_2" -e CONSUL_IP=$DS_IP $NODE_IMAGE 
+
+#run rails webapps
+docker build -t $RAILS_NODE_IMAGE ./rails-node-app/
+docker run -itd -p 3000 --net="$NETWORK_NAME" --name "$RAILS_NODE"1 --env="constraint:node==$VM_2" -e CONSUL_IP=$DS_IP $RAILS_NODE_IMAGE
+docker run -itd -p 3000 --net="$NETWORK_NAME" --name "$RAILS_NODE"2 --env="constraint:node==$VM_2" -e CONSUL_IP=$DS_IP $RAILS_NODE_IMAGE
+

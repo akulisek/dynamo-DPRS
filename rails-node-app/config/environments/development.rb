@@ -38,4 +38,7 @@ Rails.application.configure do
 
   # Raises error for missing translations
   # config.action_view.raise_on_missing_translations = true
+
+  # Log to syslog.
+  config.logger = ActiveSupport::TaggedLogging.new(Logger::Syslog.new('rails-webapp', Syslog::LOG_LOCAL7))
 end

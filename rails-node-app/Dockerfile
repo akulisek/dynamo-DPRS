@@ -1,6 +1,10 @@
 # Base image
 FROM ruby:latest
 
+RUN apt-get update
+RUN apt-get -y -q install rsyslog
+ADD test.conf /etc/rsyslog.d/test.conf
+
 ENV HOME /home/rails/webapp
 
 # Install PGsql dependencies and js engine
@@ -15,5 +19,9 @@ RUN bundle install
 # Add the app code
 ADD . $HOME
 
-# Default command
-CMD ["rails", "server", "--binding", "0.0.0.0"]
+WORKDIR /etc/
+
+ADD starter.sh starter.sh
+RUN chmod 777 starter.sh
+
+CMD sh starter.sh

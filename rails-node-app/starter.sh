@@ -7,4 +7,7 @@ sed -i "s/172.17.0.2/$IP/g" /etc/rsyslog.d/test.conf
 /etc/init.d/rsyslog start
 
 #start rails
+echo "change directory"
+cd /home/rails/webapp
+echo "start rails server"
 rails server --binding 0.0.0.0

@@ -1,6 +1,10 @@
 Rails.application.routes.draw do
 	 
- root 'node#index'
+  root 'node#index'
+
+  get 'node/read_key' => 'node#read_key_value', as: :GET_read_key_value, :defaults => { :format => 'json' }
+  post 'node/write_key' => 'node#write_key_value', as: :POST_read_key_value, :defaults => { :format => 'json' }
+  get 'node/update_configuration' => 'node#update_configuration', as: :update_configuration, :defaults => { :format => 'json' }
 
  # The priority is based upon order of creation: first created -> highest priority.
   # See how all your routes lay out with "rake routes".

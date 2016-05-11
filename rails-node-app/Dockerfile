@@ -11,7 +11,7 @@ EXPOSE 8080
 EXPOSE 514/tcp 514/udp
 
 # Install PGsql dependencies and js engine
-RUN apt-get update -qq && apt-get install -y build-essential libpq-dev nodejs
+RUN apt-get update -qq && apt-get install -y build-essential libpq-dev nodejs && apt-get install net-tools
 
 # Set Rails to run in production
 ENV RAILS_ENV production

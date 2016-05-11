@@ -67,4 +67,5 @@ docker run  -itd -p 514/udp -p 514/tcp -p 8080 --net=$NETWORK_NAME --name "$NODE
 docker build -t $RAILS_NODE_IMAGE ./rails-node-app/
 docker run -itd -p 3000 --net="$NETWORK_NAME" --name "$RAILS_NODE"1 --env="constraint:node==$VM_2" -e CONSUL_IP=$DS_IP -e REPLICATION=$REPLICATION -e DYNAMO_MAX_KEY=$DYN_MAX_KEY $RAILS_NODE_IMAGE
 docker run -itd -p 3000 --net="$NETWORK_NAME" --name "$RAILS_NODE"2 --env="constraint:node==$VM_2" -e CONSUL_IP=$DS_IP -e REPLICATION=$REPLICATION -e DYNAMO_MAX_KEY=$DYN_MAX_KEY $RAILS_NODE_IMAGE
-
+docker run -itd -p 3000 --net="$NETWORK_NAME" --name "$RAILS_NODE"3 --env="constraint:node==$VM_2" -e CONSUL_IP=$DS_IP -e REPLICATION=$REPLICATION -e DYNAMO_MAX_KEY=$DYN_MAX_KEY $RAILS_NODE_IMAGE
+docker run -itd -p 3000 --net="$NETWORK_NAME" --name "$RAILS_NODE"4 --env="constraint:node==$VM_2" -e CONSUL_IP=$DS_IP -e REPLICATION=$REPLICATION -e DYNAMO_MAX_KEY=$DYN_MAX_KEY $RAILS_NODE_IMAGE

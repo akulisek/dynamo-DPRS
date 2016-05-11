@@ -78,5 +78,5 @@ Rails.application.configure do
   config.active_record.dump_schema_after_migration = false
 
   # Log to syslog.
-  config.logger = ActiveSupport::TaggedLogging.new(Logger::Syslog.new('rails-webapp:'+IPService.local_ip, Syslog::LOG_LOCAL7))
+  config.logger = ActiveSupport::TaggedLogging.new(Logger::Syslog.new('rails-webapp: '+ENV['CONTAINER_ADDRESS'].to_s, Syslog::LOG_LOCAL7))
 end

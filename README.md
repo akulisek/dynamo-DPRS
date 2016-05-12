@@ -68,3 +68,13 @@ We have successfully finished integrating ELK stack into our system. Logs are be
 
 TODO:
 Dynamo
+
+### 12.5
+We have decided to switch from Java framework to Ruby on Rails (DynamoDB nodes). We have managed to implement consistent hashing (95% done) and currently we are working on read-write quorum, vector clocks and container metrics, service discovery broadcasts and additional SD configuration. 
+
+TODO:
+quorum
+vector clocks
+metrics (zabbix?)
+ELK graphs
+Consul broadcasts

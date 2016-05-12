@@ -10,7 +10,10 @@ sed -i "s/172.17.0.2/$IP/g" /etc/rsyslog.d/test.conf
 echo "change directory"
 cd /home/rails/webapp
 echo "start rails server"
-export SECRET_KEY_BASE=$(bundle exec rake secret)
-export CONTAINER_ADDRESS="$(ifconfig  | grep 'inet addr:'| grep -v '127.0.0.1' | cut -d: -f2 | awk '{ print $1}' | grep 192.168.0):3000"
 rails server --binding 0.0.0.0
+echo "setting environment variables"
+env SECRET_KEY_BASE=$(bundle exec rake secret)
+env CONTAINER_ADDRESS="$(ifconfig  | grep 'inet addr:'| grep -v '127.0.0.1' | cut -d: -f2 | awk '{ print $1}' | grep 192.168.0):3000"
 
+#make node register itself to Consul
+curl http://$CONTAINER_ADDRESS/node/register_to_service_discovery

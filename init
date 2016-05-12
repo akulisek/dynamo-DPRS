@@ -34,6 +34,9 @@ docker run -d -p "8400:8400" -p "8500:8500" -p "8600:53/udp"  --name $SD progriu
 
 DS_IP=$(docker-machine ip $DS_VM)
 
+#initialize empty dynamo k-v storage in consul
+curl -X PUT -H "Content-Type: application/json" -d '{}' http://$DS_IP:8500/v1/kv/docker_nodes
+
 #run new virtual machines swarm and host
 docker-machine create -d virtualbox --swarm --swarm-master --swarm-discovery="consul://$DS_IP:8500" --engine-opt="cluster-store=consul://$DS_IP:8500" --engine-opt="cluster-advertise=eth1:2376" $VM_1 
 docker-machine create -d virtualbox --swarm --swarm-discovery="consul://$DS_IP:8500" --engine-opt="cluster-store=consul://$DS_IP:8500" --engine-opt="cluster-advertise=eth1:0" $VM_2

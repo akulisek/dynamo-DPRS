@@ -20,7 +20,7 @@ class NodeController < ApplicationController
       log_message('Reading key:'+params[:key])
       response = @@key_value_storage[params[:key]]
     else
-      log_message('Redirecting request to:')
+      log_message('Redirecting GET request')
       response = designate_coordinator(:get)
     end
     respond_to do |format|
@@ -34,7 +34,7 @@ class NodeController < ApplicationController
       store_value(params[:key], params[:value])
       response = @@key_value_storage[params[:key]] || 'Storing value failed'
     else
-      log_message('Redirecting request to:')
+      log_message('Redirecting POST request')
       response = designate_coordinator(:post)
     end
     respond_to do |format|
@@ -81,18 +81,19 @@ class NodeController < ApplicationController
   def designate_coordinator type
     nodes = get_responsible_nodes(params[:key])
     rand_index = rand(0..3)
+    log_message('Designating coordinator for nodes: ' + nodes.size.to_s + ' and type: ' + type == :get)
     nodes.each_with_index do |(key, value),index|
       if index == rand_index
         if type == :get
           log_message('Redirecting request to:' + 'http://' + key + '/node/read_key?&key=' + params[:key])
-          #response = HTTPService.get_request('http://' + key + '/node/read_key?&key=' + params[:key])
+          response = HTTPService.get_request('http://' + key + '/node/read_key?&key=' + params[:key])
         elsif type == :post
-          log_message('Redirecting request to:' + 'http://' + key + '/node/write_key with data: ' + { 'key' => params[:key], 'value' => params[:value]}.to_s)
-          #response = HTTPService.post_request('http://' + key + '/node/write_key', { 'key' => params[:key], 'value' => params[:value]})
+          log_message('Redirecting request to:' + 'http://' + key + '/node/write_key with data: ' + { :key => params[:key], :value => params[:value]}.to_s)
+          response = HTTPService.post_request('http://' + key + '/node/write_key', { :key => params[:key], :value => params[:value]})
         end
       end
     end
-    response.body
+    response.body || false
   end
 
   def can_serve_request? key
@@ -126,7 +127,7 @@ class NodeController < ApplicationController
 
     sorted_hash_keys.each_with_index do |key, index|
       if key == responsible_node_key
-        3.times.each_with_index { |_e, iterator| responsible_hash_keys << sorted_hash_keys[index + iterator]}
+        3.times.each_with_index { |_e, iterator| responsible_hash_keys << sorted_hash_keys[(index + iterator) % sorted_hash_keys.size]}
       end
     end
 
@@ -153,7 +154,7 @@ class NodeController < ApplicationController
   end
 
   def log_message message
-    logger.warn 'REQUEST ' + params[:correlation_id].to_s + '; CONTAINER ' + ENV['HOSTNAME'] + ' :: ' + message
+    logger.warn 'REQUEST ' + params[:correlation_id].to_s + ' :: CONTAINER ' + ENV['HOSTNAME'] + ' :: ' + message
   end
 
 end

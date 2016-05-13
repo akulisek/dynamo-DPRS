@@ -58,6 +58,35 @@ docker build -t $LOG_IMAGE ./Logs/
 docker run -d -v /var/run/docker.sock:/tmp/docker.sock --net=$NETWORK_NAME -h registrator --name registratorSW2 kidibox/registrator -internal consul://$DS_IP:8500
 docker run -itd -p 8080:80 -p 5000:5000 -p 5000:5000/udp --net=$NETWORK_NAME --name "$LOG_INSTANCE"1 --env="constraint:node==$LOG_VM" -e CONSUL_IP=$DS_IP -e LOG_HOST_IP=$LOG_IP $LOG_IMAGE
 
+#zabbix
+docker run -d -v /var/lib/mysql --net=$NETWORK_NAME  --name zabbix-db-storage busybox:latest
+
+# start DB for Zabbix
+docker run \
+    -d \
+    --name zabbix-db \
+    --net=$NETWORK_NAME \
+    -v /backups:/backups \
+    -v /etc/localtime:/etc/localtime:ro \
+    --volumes-from zabbix-db-storage \
+    --env="MARIADB_USER=zabbix" \
+    --env="MARIADB_PASS=my_password" \
+    zabbix/zabbix-db-mariadb
+
+# start Zabbix linked to started DB
+docker run \
+    -d \
+    --name zabbix \
+    -p 8888:80 \
+    --net=$NETWORK_NAME \
+    -p 10051:10051 \
+    -v /etc/localtime:/etc/localtime:ro \
+    --link zabbix-db:zabbix.db \
+    --env="ZS_DBHost=zabbix.db" \
+    --env="ZS_DBUser=zabbix" \
+    --env="ZS_DBPassword=my_password" \
+    zabbix/zabbix-3.0:latest
+
 #run node container
 eval $(docker-machine env $VM_2)
 docker build -t $NODE_IMAGE ./node-app/

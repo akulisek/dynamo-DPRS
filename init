@@ -48,7 +48,7 @@ eval $(docker-machine env $VM_1)
 docker network create --subnet=$NETWORK -d overlay $NETWORK_NAME 
 docker run -d -v /var/run/docker.sock:/tmp/docker.sock --net=$NETWORK_NAME -h registrator --name registratorSW1 kidibox/registrator -internal consul://$DS_IP:8500
 docker build -t ng --build-arg CONSUL=$(docker-machine ip $DS_VM) ./nginx/
-docker run -itd -p 80:3000 --name=$PROXY --net=$NETWORK_NAME --env="constraint:node==$VM_1" ng
+docker run -itd -p 80:80 --name=$PROXY --net=$NETWORK_NAME --env="constraint:node==$VM_1" ng
 
 
 #run log container

@@ -17,7 +17,7 @@ server {
 
    location / {
 		proxy_pass http://app;
-		set $args $args&correlation_id=$request_uuid;
+		proxy_set_header correlation_id $request_uuid;
 	}
 }
 

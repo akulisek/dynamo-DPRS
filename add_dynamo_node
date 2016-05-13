@@ -1,0 +1,14 @@
+REPLICATION="3"
+DYN_MAX_KEY="65536"
+DS_IP=$(docker-machine ip docker-SD)
+NETWORK_NAME="private-network"
+RAILS_NODE_IMAGE="rails-image"
+
+if [ $# -eq 2 ]; then
+   docker run -itd -p 3000 --net="$NETWORK_NAME" --name "rails-webapp$2" --env="constraint:node==$1" -e CONSUL_IP=$DS_IP -e REPLICATION=$REPLICATION -e DYNAMO_MAX_KEY=$DYN_MAX_KEY $RAILS_NODE_IMAGE
+   echo "waiting for containers to initialize..."
+   sleep 10
+   curl http://$(docker-machine ip $1):$(docker ps | grep "rails-webapp$2" | tr -s " " | cut -d" " -f16 | cut -d: -f2 | cut -d"-" -f1)/node/register_to_service_discovery	
+else
+  echo "Usage: add_dynamo_node [virtual machine name] [dynamo container id]"
+fi

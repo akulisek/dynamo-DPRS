@@ -103,7 +103,9 @@ docker run -itd -p 3000 --net="$NETWORK_NAME" --name "$RAILS_NODE"3 --env="const
 docker run -itd -p 3000 --net="$NETWORK_NAME" --name "$RAILS_NODE"4 --env="constraint:node==$VM_2" -e CONSUL_IP=$DS_IP -e REPLICATION=$REPLICATION -e DYNAMO_MAX_KEY=$DYN_MAX_KEY $RAILS_NODE_IMAGE
 
 #automatically register nodes to consul
-curl http://$(docker-machine ip $VM_2):$(docker ps | grep $RAILS_NODE1 | tr -s " " | cut -d" " -f16 | cut -d: -f2 | cut -d"-" -f1)/node/register_to_service_discovery
-curl http://$(docker-machine ip $VM_2):$(docker ps | grep $RAILS_NODE2 | tr -s " " | cut -d" " -f16 | cut -d: -f2 | cut -d"-" -f1)/node/register_to_service_discovery
-curl http://$(docker-machine ip $VM_2):$(docker ps | grep $RAILS_NODE3 | tr -s " " | cut -d" " -f16 | cut -d: -f2 | cut -d"-" -f1)/node/register_to_service_discovery
-curl http://$(docker-machine ip $VM_2):$(docker ps | grep $RAILS_NODE4 | tr -s " " | cut -d" " -f16 | cut -d: -f2 | cut -d"-" -f1)/node/register_to_service_discovery
+echo "waiting for containers to initialize..."
+sleep 10
+curl http://$(docker-machine ip $VM_2):$(docker ps | grep "$RAILS_NODE"1 | tr -s " " | cut -d" " -f16 | cut -d: -f2 | cut -d"-" -f1)/node/register_to_service_discovery
+curl http://$(docker-machine ip $VM_2):$(docker ps | grep "$RAILS_NODE"2 | tr -s " " | cut -d" " -f16 | cut -d: -f2 | cut -d"-" -f1)/node/register_to_service_discovery
+curl http://$(docker-machine ip $VM_2):$(docker ps | grep "$RAILS_NODE"3 | tr -s " " | cut -d" " -f16 | cut -d: -f2 | cut -d"-" -f1)/node/register_to_service_discovery
+curl http://$(docker-machine ip $VM_2):$(docker ps | grep "$RAILS_NODE"4 | tr -s " " | cut -d" " -f16 | cut -d: -f2 | cut -d"-" -f1)/node/register_to_service_discovery

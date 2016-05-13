@@ -1,0 +1,2 @@
+eval $(docker-machine env --swarm sm-docker-0)
+docker rm -f $(docker ps --format "{{.Names}}" | grep rails-webapp )

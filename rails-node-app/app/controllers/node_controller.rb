@@ -1,7 +1,7 @@
 class NodeController < ApplicationController
 
   skip_before_filter :verify_authenticity_token, :only => [:read_key_value, :write_key_value, :update_configuration]
-  before_action :update_configuration, :only => [:register_to_service_discovery]
+  before_action :update_configuration_before_registration, :only => [:register_to_service_discovery]
 
   @@key_value_storage = {}
   @@dynamo_nodes = {}
@@ -21,7 +21,9 @@ class NodeController < ApplicationController
       response = @@key_value_storage[params[:key]]
     else
       log_message('Redirecting GET request')
-      response = designate_coordinator(:get)
+      response = JSON.parse(designate_coordinator(:get))
+      log_message('Response from coordinator: ' + response.to_s + ' with class: ' + response.class.to_s)
+      response = response['response']
     end
     respond_to do |format|
       format.json { render :json => { :response => response } }
@@ -35,7 +37,9 @@ class NodeController < ApplicationController
       response = @@key_value_storage[params[:key]] || 'Storing value failed'
     else
       log_message('Redirecting POST request')
-      response = designate_coordinator(:post)
+      response = JSON.parse(designate_coordinator(:post))
+      log_message('Response from coordinator: ' + response.to_s + ' with class: ' + response.class.to_s)
+      response = response['response']
     end
     respond_to do |format|
       format.json { render :json => { :response => response } }
@@ -49,6 +53,9 @@ class NodeController < ApplicationController
     response = HTTPService.get_request(url)
     log_message(response.body)
     @@dynamo_nodes = JSON.parse(response.body)
+    respond_to do |format|
+      format.json { render :json => { :configuration => @@dynamo_nodes } }
+    end
   end
 
   def register_to_service_discovery
@@ -70,6 +77,14 @@ class NodeController < ApplicationController
 
   private
 
+  def update_configuration_before_registration
+    url = 'http://'+ENV['CONSUL_IP']+':8500/v1/kv/docker_nodes?raw'
+    log_message('Updating configuration from: ' + url)
+    response = HTTPService.get_request(url)
+    log_message(response.body)
+    @@dynamo_nodes = JSON.parse(response.body)
+  end
+
   def store_value key, value
     @@key_value_storage[key] ||= value if key
   end
@@ -80,20 +95,27 @@ class NodeController < ApplicationController
 
   def designate_coordinator type
     nodes = get_responsible_nodes(params[:key])
-    rand_index = rand(0..3)
-    log_message('Designating coordinator for nodes: ' + nodes.size.to_s + ' and type: ' + type == :get)
+    rand_index = SecureRandom.random_number(3)
+    log_message('Designating coordinator for nodes: ' + nodes.size.to_s + ' and type: ' + (type == :get).to_s )
     nodes.each_with_index do |(key, value),index|
       if index == rand_index
         if type == :get
+          puts 'Redirecting request to:' + 'http://' + key + '/node/read_key?&key=' + params[:key]
           log_message('Redirecting request to:' + 'http://' + key + '/node/read_key?&key=' + params[:key])
           response = HTTPService.get_request('http://' + key + '/node/read_key?&key=' + params[:key])
+          puts 'Response body:' + response.body.to_s
+          log_message('Response body:' + response.body.to_s)
+          return response.body
         elsif type == :post
+          puts 'Redirecting request to:' + 'http://' + key + '/node/write_key with data: ' + { :key => params[:key], :value => params[:value]}.to_s
           log_message('Redirecting request to:' + 'http://' + key + '/node/write_key with data: ' + { :key => params[:key], :value => params[:value]}.to_s)
           response = HTTPService.post_request('http://' + key + '/node/write_key', { :key => params[:key], :value => params[:value]})
+          puts 'Response body:' + response.body.to_s
+          log_message('Response body:' + response.body.to_s)
+          return response.body
         end
       end
     end
-    response.body || false
   end
 
   def can_serve_request? key
@@ -114,9 +136,9 @@ class NodeController < ApplicationController
     sorted_hash_keys = @@dynamo_nodes.sort_by { |_k,v| v.first.second.to_i}.map {|_k,v| v.first.second}
 
     sorted_hash_keys.each do |hash_key|
-      log_message('Comparing key '+key.to_i.to_s+' to hash_key '+hash_key.to_i.to_s)
+      #log_message('Comparing key '+key.to_i.to_s+' to hash_key '+hash_key.to_i.to_s)
       if key.to_i.between?(previous.to_i,hash_key.to_i)
-        responsible_node_key = key
+        responsible_node_key = hash_key
         break
       elsif hash_key.to_i == sorted_hash_keys.last.to_i && hash_key.to_i < key.to_i
         responsible_node_key = sorted_hash_keys.first
@@ -140,7 +162,7 @@ class NodeController < ApplicationController
     satisfied = false
     keys = @@dynamo_nodes.map { |_k,v| v['hash_key']}.sort
     while !satisfied do
-      generated_key = rand(0..(ENV['DYNAMO_MAX_KEY'].to_i))
+      generated_key = SecureRandom.random_number(ENV['DYNAMO_MAX_KEY'].to_i)
       collision = false
       keys.each do |key|
        if (key.to_i - generated_key).abs <= 100

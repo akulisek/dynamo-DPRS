@@ -14,7 +14,7 @@ class HTTPService
     headers = {'Content-Type' => 'application/json', 'Accept-Encoding'=> 'gzip,deflate'}
     http = Net::HTTP.new(uri.host, uri.port)
     request = Net::HTTP::Post.new(uri.request_uri, headers)
-    request.body = JSON.parse(body)
+    request.body = JSON.parse(body.to_json).to_json
     http.request(request)
   end
 

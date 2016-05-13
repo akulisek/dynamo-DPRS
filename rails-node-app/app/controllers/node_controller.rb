@@ -10,15 +10,30 @@ class NodeController < ApplicationController
   @@initialized = false
 
   def index
-    puts 'NodeController#index ' + Rails.env
+    logger.warn 'NodeController#index ' + Rails.env
     logger.warn 'Hello from NodeController!, my key is ' + @@my_key.to_s
     logger.warn 'Dynamo nodes: ' + @@dynamo_nodes.to_s
   end
 
   def read_key_value
     if can_serve_request?(params[:key])
-      log_message('Reading key:'+params[:key])
-      response = @@key_value_storage[params[:key]]
+      if params[:coordinated]
+        log_message('Reading key, request is coordinated:'+params[:key])
+        response = @@key_value_storage[params[:key]]
+      else
+        log_message('Coordinating read key:'+params[:key])
+        accept_counter = 0
+        read_quorum = params[:read_quorum].to_i || 0 #parse_quorum_json(params[:quorum], :read)
+
+        response = []
+        responses = coordinate_request(:get)
+        log_message('Coordinated response: ' + responses.to_s )
+        responses.each { |r| accept_counter +=1 unless r.nil?; response << r unless r.nil?}
+
+        unless accept_counter >= read_quorum
+          response = 'Sorry, request quorum was not satisfied by DynamoDB'
+        end
+      end
     else
       log_message('Redirecting GET request')
       response = JSON.parse(designate_coordinator(:get))
@@ -32,9 +47,23 @@ class NodeController < ApplicationController
 
   def write_key_value
     if can_serve_request?(params[:key])
-      log_message('Writing key:' + params[:key] + ' with value:' + params[:value])
-      store_value(params[:key], params[:value])
-      response = @@key_value_storage[params[:key]] || 'Storing value failed'
+      if params[:coordinated]
+        log_message('Writing key, request is coordinated::' + params[:key] + ' with value:' + params[:value])
+        store_value(params[:key], params[:value])
+        response = @@key_value_storage[params[:key]] || 'Storing value failed'
+      else
+        log_message('Coordinating write key:'+params[:key])
+        accept_counter = 0
+        write_quorum = params[:write_quorum].to_i || 0 #parse_quorum_json(params[:quorum], :write)
+
+        response = []
+        responses = coordinate_request(:post)
+        responses.each { |r| accept_counter +=1 unless r.nil?; response << r unless r.nil?}
+
+        unless accept_counter >= write_quorum
+          response = 'Sorry, request quorum was not satisfied by DynamoDB'
+        end
+      end
     else
       log_message('Redirecting POST request')
       response = JSON.parse(designate_coordinator(:post))
@@ -89,8 +118,35 @@ class NodeController < ApplicationController
     @@key_value_storage[key] ||= value if key
   end
 
-  def coordinate_request
-
+  def coordinate_request type
+    nodes = get_responsible_nodes(params[:key])
+    log_message('Coordinating request for ' + nodes.size.to_s + ' nodes and type: ' + (type == :get).to_s )
+    coordinated_response = []
+    nodes.each_with_index do |(key, value),index|
+      if @@my_key != value.first.second
+        if type == :get
+          log_message('Redirecting coordinated request to:' + 'http://' + key + '/node/read_key?&key=' + params[:key] + '&correlation_id=' + params[:correlation_id] + '&coordinated=true')
+          response = HTTPService.get_request('http://' + key + '/node/read_key?&key=' + params[:key] + '&correlation_id=' + params[:correlation_id] + '&coordinated=true')
+          log_message('Coordinated response body:' + response.body.to_s)
+          coordinated_response << (JSON.parse(response.body) unless response.nil? || nil)
+        elsif type == :post
+          log_message('Redirecting coordinated request to:' + 'http://' + key + '/node/write_key with data: ' + { :key => params[:key], :value => params[:value], :correlation_id => params[:correlation_id], :coordinated => true}.to_s)
+          response = HTTPService.post_request('http://' + key + '/node/write_key', { :key => params[:key], :value => params[:value], :correlation_id => params[:correlation_id], :coordinated => true})
+          log_message('Coordinated response body:' + response.body.to_s)
+          coordinated_response << (JSON.parse(response.body) unless response.nil? || nil)
+        end
+      else
+        if type == :get
+          log_message('Reading key:' + params[:key])
+          coordinated_response << { 'response' => @@key_value_storage[params[:key]]}
+        elsif type == :post
+          log_message('Writing key:' + params[:key] + ' with value:' + params[:value])
+          store_value(params[:key], params[:value])
+          coordinated_response << { 'response' => (@@key_value_storage[params[:key]] || 'Storing value failed') }
+        end
+      end
+    end
+    coordinated_response
   end
 
   def designate_coordinator type
@@ -100,17 +156,13 @@ class NodeController < ApplicationController
     nodes.each_with_index do |(key, value),index|
       if index == rand_index
         if type == :get
-          puts 'Redirecting request to:' + 'http://' + key + '/node/read_key?&key=' + params[:key]
-          log_message('Redirecting request to:' + 'http://' + key + '/node/read_key?&key=' + params[:key])
-          response = HTTPService.get_request('http://' + key + '/node/read_key?&key=' + params[:key])
-          puts 'Response body:' + response.body.to_s
+          log_message('Redirecting request to:' + 'http://' + key + '/node/read_key?&key=' + params[:key] + '&correlation_id=' + params[:correlation_id])
+          response = HTTPService.get_request('http://' + key + '/node/read_key?&key=' + params[:key] + '&correlation_id=' + params[:correlation_id])
           log_message('Response body:' + response.body.to_s)
           return response.body
         elsif type == :post
-          puts 'Redirecting request to:' + 'http://' + key + '/node/write_key with data: ' + { :key => params[:key], :value => params[:value]}.to_s
-          log_message('Redirecting request to:' + 'http://' + key + '/node/write_key with data: ' + { :key => params[:key], :value => params[:value]}.to_s)
-          response = HTTPService.post_request('http://' + key + '/node/write_key', { :key => params[:key], :value => params[:value]})
-          puts 'Response body:' + response.body.to_s
+          log_message('Redirecting request to:' + 'http://' + key + '/node/write_key with data: ' + { :key => params[:key], :value => params[:value], :correlation_id => params[:correlation_id]}.to_s)
+          response = HTTPService.post_request('http://' + key + '/node/write_key', { :key => params[:key], :value => params[:value], :correlation_id => params[:correlation_id]})
           log_message('Response body:' + response.body.to_s)
           return response.body
         end
@@ -127,7 +179,7 @@ class NodeController < ApplicationController
 
   def get_responsible_nodes key
     responsible_hash_keys = []
-    if @@dynamo_nodes.size <= 3
+    if @@dynamo_nodes.size <= ENV['REPLICATION'].to_i
       return @@dynamo_nodes
     end
     responsible_node_key = 0
@@ -177,6 +229,16 @@ class NodeController < ApplicationController
 
   def log_message message
     logger.warn 'REQUEST ' + params[:correlation_id].to_s + ' :: CONTAINER ' + ENV['HOSTNAME'] + ' :: ' + message
+    puts 'REQUEST ' + params[:correlation_id].to_s + ' :: CONTAINER ' + ENV['HOSTNAME'] + ' :: ' + message
+  end
+
+  def parse_quorum_json json, type
+    if type == :read
+      response = json[:read_quorum]
+    elsif type == :write
+      response = json[:write_quorum]
+    end
+    response
   end
 
 end

@@ -6,6 +6,8 @@ Rails.application.routes.draw do
   post 'node/write_key' => 'node#write_key_value', as: :POST_read_key_value, :defaults => { :format => 'json' }
   get 'node/update_configuration' => 'node#update_configuration', as: :update_configuration, :defaults => { :format => 'json' }
   get 'node/get_data' => 'node#get_data', as: :get_data, :defaults => { :format => 'json' }
+  get 'node/get_all_data' => 'node#get_all_data', as: :get_all_data, :defaults => { :format => 'json' }
+  get 'node/get_data_for_range' => 'node#get_data_for_range', as: :get_data_for_range, :defaults => { :format => 'json' }
   get 'node/register_to_service_discovery' => 'node#register_to_service_discovery', as: :register_to_service_discovery, :defaults => { :format => 'json' }
 
  # The priority is based upon order of creation: first created -> highest priority.

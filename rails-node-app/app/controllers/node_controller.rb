@@ -79,10 +79,11 @@ class NodeController < ApplicationController
   def update_configuration
     if @@initialized
       url = 'http://'+ENV['CONSUL_IP']+':8500/v1/kv/docker_nodes?raw'
-      log_message('Updating configuration from: ' + url)
+      #log_message('Updating configuration from: ' + url)
       response = HTTPService.get_request(url)
-      log_message(response.body)
-      @@dynamo_nodes = JSON.parse(response.body)
+      log_message('Dynamo changed, updating configuration to: ' + response.body)
+      response = JSON.parse(response.body)
+      replicate_data(response)
     end
     respond_to do |format|
       format.json { render :json => { :configuration => @@dynamo_nodes } }
@@ -92,6 +93,7 @@ class NodeController < ApplicationController
   def register_to_service_discovery
     unless @@initialized
       pick_random_key
+      replicate_data_before_registration
       @@dynamo_nodes[ENV['CONTAINER_ADDRESS']] = { :hash_key => @@my_key, :container_id => ENV['HOSTNAME'] }
       url = 'http://'+ENV['CONSUL_IP']+':8500/v1/kv/docker_nodes'
       HTTPService.put_request(url, @@dynamo_nodes)
@@ -109,7 +111,141 @@ class NodeController < ApplicationController
     end
   end
 
+  def get_all_data
+    respond_to do |format|
+      format.json { render :json => { :response => @@key_value_storage } }
+    end
+  end
+
+  def get_data_for_range
+    data = select_data_for_range(params[:from], params[:to])
+    respond_to do |format|
+      format.json { render :json => { :response => data } }
+    end
+  end
+
   private
+
+  def replicate_data new_config
+    old_sorted_hash_keys = @@dynamo_nodes.sort_by { |_k,v| v.first.second.to_i}.map {|_k,v| v.first.second}
+    new_sorted_hash_keys = new_config.sort_by { |_k,v| v.first.second.to_i}.map {|_k,v| v.first.second}
+
+    hash_old = Hash[old_sorted_hash_keys.map.with_index.to_a]
+    hash_new = Hash[new_sorted_hash_keys.map.with_index.to_a]
+
+    if new_config.size < @@dynamo_nodes.size
+      removed_node = old_sorted_hash_keys.select { |e| !e.in?(new_sorted_hash_keys) }.first
+      log_message('Container with key: ' + removed_node.to_s + ' was removed from dynamo')
+
+      removed_after_myself = (new_sorted_hash_keys[(hash_new[@@my_key] + 2) % hash_new.size] != old_sorted_hash_keys[(hash_old[@@my_key] + 2) % hash_old.size] )
+      removed_before_myself = (new_sorted_hash_keys[(hash_new[@@my_key] - 1) % hash_new.size] != old_sorted_hash_keys[(hash_old[@@my_key] - 2) % hash_old.size] )
+
+      uri = nil
+      if removed_after_myself
+        log_message('Container was removed after me and I have to get new data from: ' +
+                        old_sorted_hash_keys[(hash_old[@@my_key] + 2) % hash_old.size] +
+                        ' to:' + new_sorted_hash_keys[(hash_new[@@my_key] + 2) % hash_new.size])
+
+        node = new_config.select { |ip, data| data.first.second == new_sorted_hash_keys[(hash_new[@@my_key] + 2) % hash_new.size] }
+        uri = 'http://' + node.first.first +
+            '/node/get_data_for_range?&from=' +
+            old_sorted_hash_keys[(hash_old[@@my_key] + 2) % hash_old.size] +
+            '&to=' + new_sorted_hash_keys[(hash_new[@@my_key] + 2) % hash_new.size]
+      elsif removed_before_myself
+        log_message('Container was removed right before me and I have to get new data from: ' +
+                        new_sorted_hash_keys[(hash_new[@@my_key] + -1) % hash_new.size] +
+                        ' to:' + old_sorted_hash_keys[(hash_old[@@my_key] - 2) % hash_old.size])
+
+        node = new_config.select { |ip, data| data.first.second == new_sorted_hash_keys[(hash_new[@@my_key] + -1) % hash_new.size] }
+        uri = 'http://' + node.first.first +
+            '/node/get_data_for_range?&from=' +
+            new_sorted_hash_keys[(hash_new[@@my_key] + -1) % hash_new.size] +
+            '&to=' + old_sorted_hash_keys[(hash_old[@@my_key] - 2) % hash_old.size]
+      end
+      if uri
+        log_message('Getting new data after removing a contaniner from: ' + uri)
+        response = JSON.parse(HTTPService.get_request(uri).body)['response']
+        response.each do |key, value|
+          store_value(key, value)
+        end
+      end
+    elsif new_config.size > @@dynamo_nodes.size
+      inserted_node = new_sorted_hash_keys.select { |e| !e.in?(old_sorted_hash_keys) }.first
+      log_message('Container with key: ' + inserted_node.to_s + ' was inserted to dynamo')
+
+      index_range_after = []
+      index_range_before = []
+      3.times.each_with_index { |_e, iterator| index_range_after << ((hash_new[@@my_key] + iterator) % hash_new.size ) }
+      index_range_before << ((hash_new[@@my_key] - 1) % hash_new.size )
+
+      inserted_after_myself = hash_new[inserted_node].in?(index_range_after)
+      inserted_before_myself = hash_new[inserted_node].in?(index_range_before)
+      log_message('Index range before: ' + index_range_before.to_s + ' ; Index range after: ' + index_range_after.to_s +
+                      ' ; Inserted: ' + hash_new[inserted_node].to_s + 'Inserted node: ' + inserted_node.to_s +
+                      ' ; Inserted_after_myself: ' + inserted_after_myself.to_s +
+                      ' ; Inserted_before_myself: ' + inserted_before_myself.to_s
+      )
+
+
+      hash_range_to_delete = []
+      if inserted_before_myself
+        log_message('Container was added before me and I remove values with range from: ' +
+                        new_sorted_hash_keys[(hash_new[inserted_node] - 1) % hash_new.size] +
+                        ' to: ' + new_sorted_hash_keys[hash_new[inserted_node]])
+        hash_range_to_delete << new_sorted_hash_keys[(hash_new[inserted_node] - 1) % hash_new.size].to_i
+        hash_range_to_delete << new_sorted_hash_keys[hash_new[inserted_node]].to_i
+      elsif inserted_after_myself
+        log_message('Container was added after me and I remove values with range from: ' +
+                        new_sorted_hash_keys[(hash_new[@@my_key] + 2) % hash_new.size] +
+                        ' to: ' + old_sorted_hash_keys[(hash_old[@@my_key] + 2) % hash_old.size])
+        hash_range_to_delete << new_sorted_hash_keys[(hash_new[@@my_key] + 2) % hash_new.size].to_i
+        hash_range_to_delete << old_sorted_hash_keys[(hash_old[@@my_key] + 2) % hash_old.size].to_i
+      end
+      unless hash_range_to_delete.empty?
+        log_message('Removing values from range: ' + hash_range_to_delete.to_s)
+        remove_values(hash_range_to_delete)
+      end
+    end
+    log_message('Setting new config: ' + new_config.to_s)
+    @@dynamo_nodes = new_config
+  end
+
+  def remove_values range
+    @@key_value_storage.each do |key, _value|
+      if range.first < range.second
+        if is_higher_and_lower_equal_than?(key, range.first, range.second)
+          @@key_value_storage.delete(key)
+        end
+      else
+        if ((is_higher_and_lower_equal_than?(key, range.first, ENV['DYNAMO_MAX_KEY'])) ||
+            (is_higher_and_lower_equal_than?(key, 0, range.second)))
+          @@key_value_storage.delete(key)
+        end
+      end
+    end
+  end
+
+  # store data for self and replicas of the next 2 nodes
+  def replicate_data_before_registration
+    sorted_hash_keys = @@dynamo_nodes.sort_by { |_k,v| v.first.second.to_i}.map {|_k,v| v.first.second}
+    sorted_hash_keys << @@my_key
+    sorted_hash_keys = sorted_hash_keys.sort
+
+    hash = Hash[sorted_hash_keys.map.with_index.to_a]
+
+    nodes_to_be_replicated = []
+    nodes_to_be_replicated << sorted_hash_keys[(hash[@@my_key] + 1 ) % sorted_hash_keys.size]
+    nodes_to_be_replicated << sorted_hash_keys[(hash[@@my_key] + 2 ) % sorted_hash_keys.size]
+
+    @@dynamo_nodes.each do |ip, data|
+      if data.first.second.in?(nodes_to_be_replicated)
+        data = JSON.parse(HTTPService.get_request('http://' + ip.to_s + '/node/get_data').body)['response']
+        data.each do |key, value|
+          store_value(key, value)
+        end
+      end
+    end
+  end
 
   def select_my_key_data
     sorted_hash_keys = @@dynamo_nodes.sort_by { |_k,v| v.first.second.to_i}.map {|_k,v| v.first.second}
@@ -133,11 +269,30 @@ class NodeController < ApplicationController
     data
   end
 
+  def select_data_for_range lower_bound, higher_bound
+    unless lower_bound && higher_bound
+      return nil
+    end
+    data = {}
+    @@key_value_storage.each do | key, value|
+      puts key+"=>"+value
+      if lower_bound < higher_bound
+        puts 'FIRST CASE: lower_bound: ' + lower_bound.to_s + ' higher_bound: ' + higher_bound.to_s
+        data[key] = value if is_higher_and_lower_equal_than?(key, lower_bound, higher_bound)
+      else
+        puts 'SECOND CASE:lower_bound: ' + lower_bound.to_s + ' higher_bound: ' + higher_bound.to_s
+        data[key] = value if ((is_higher_and_lower_equal_than?(key, lower_bound, ENV['DYNAMO_MAX_KEY'])) ||
+            (is_higher_and_lower_equal_than?(key, 0, higher_bound)))
+      end
+    end
+    data
+  end
+
   def update_configuration_before_registration
     url = 'http://'+ENV['CONSUL_IP']+':8500/v1/kv/docker_nodes?raw'
-    log_message('Updating configuration from: ' + url)
+    #log_message('Updating configuration from: ' + url)
     response = HTTPService.get_request(url)
-    log_message(response.body)
+    log_message('Updating configuration to: ' + response.body)
     @@dynamo_nodes = JSON.parse(response.body)
   end
 
@@ -229,7 +384,7 @@ class NodeController < ApplicationController
 
     sorted_hash_keys.each_with_index do |key, index|
       if key == responsible_node_key
-        3.times.each_with_index { |_e, iterator| responsible_hash_keys << sorted_hash_keys[(index + iterator) % sorted_hash_keys.size]}
+        3.times.each_with_index { |_e, iterator| responsible_hash_keys << sorted_hash_keys[(index - iterator) % sorted_hash_keys.size]}
       end
     end
 
@@ -270,7 +425,8 @@ class NodeController < ApplicationController
   end
 
   def is_higher_and_lower_equal_than? value, lower_bound, higher_bound
-    #puts 'is: ' + value.to_s + ' higher and lower-equal than?' + ((value.to_i > lower_bound.to_i) && (value.to_i  <= higher_bound.to_i)).to_s
+    puts 'is: ' + value.to_s + ' higher and lower-equal than?' + ((value.to_i > lower_bound.to_i) && (value.to_i  <= higher_bound.to_i)).to_s
+    puts 'lower_bound: ' + lower_bound.to_s + ' higher_bound: ' + higher_bound.to_s
     (value.to_i > lower_bound.to_i) && (value.to_i  <= higher_bound.to_i)
   end
 

@@ -77,11 +77,13 @@ class NodeController < ApplicationController
 
   # consul broadcasts all nodes with GET request to this upon /v1/kv/docker_nodes change
   def update_configuration
-    url = 'http://'+ENV['CONSUL_IP']+':8500/v1/kv/docker_nodes?raw'
-    log_message('Updating configuration from: ' + url)
-    response = HTTPService.get_request(url)
-    log_message(response.body)
-    @@dynamo_nodes = JSON.parse(response.body)
+    if @@initialized
+      url = 'http://'+ENV['CONSUL_IP']+':8500/v1/kv/docker_nodes?raw'
+      log_message('Updating configuration from: ' + url)
+      response = HTTPService.get_request(url)
+      log_message(response.body)
+      @@dynamo_nodes = JSON.parse(response.body)
+    end
     respond_to do |format|
       format.json { render :json => { :configuration => @@dynamo_nodes } }
     end
@@ -101,10 +103,35 @@ class NodeController < ApplicationController
   end
 
   def get_data
-
+    data = select_my_key_data
+    respond_to do |format|
+      format.json { render :json => { :response => data } }
+    end
   end
 
   private
+
+  def select_my_key_data
+    sorted_hash_keys = @@dynamo_nodes.sort_by { |_k,v| v.first.second.to_i}.map {|_k,v| v.first.second}
+    hash = Hash[sorted_hash_keys.map.with_index.to_a]
+
+    lower_bound = sorted_hash_keys[(hash[@@my_key] -1 ) % sorted_hash_keys.size].to_i
+    higher_bound = sorted_hash_keys[hash[@@my_key]].to_i
+
+    data = {}
+    @@key_value_storage.each do | key, value|
+      #puts key+"=>"+value
+      if lower_bound < higher_bound
+        #puts 'FIRST CASE: lower_bound: ' + lower_bound.to_s + ' higher_bound: ' + higher_bound.to_s
+        data[key] = value if is_higher_and_lower_equal_than?(key, lower_bound, higher_bound)
+      else
+        #puts 'SECOND CASE:lower_bound: ' + lower_bound.to_s + ' higher_bound: ' + higher_bound.to_s
+        data[key] = value if ((is_higher_and_lower_equal_than?(key, lower_bound, ENV['DYNAMO_MAX_KEY'])) ||
+            (is_higher_and_lower_equal_than?(key, 0, higher_bound)))
+      end
+    end
+    data
+  end
 
   def update_configuration_before_registration
     url = 'http://'+ENV['CONSUL_IP']+':8500/v1/kv/docker_nodes?raw'
@@ -177,6 +204,7 @@ class NodeController < ApplicationController
     end
   end
 
+  # return all nodes responsible for replications of given key
   def get_responsible_nodes key
     responsible_hash_keys = []
     if @@dynamo_nodes.size <= ENV['REPLICATION'].to_i
@@ -189,7 +217,7 @@ class NodeController < ApplicationController
 
     sorted_hash_keys.each do |hash_key|
       #log_message('Comparing key '+key.to_i.to_s+' to hash_key '+hash_key.to_i.to_s)
-      if key.to_i.between?(previous.to_i,hash_key.to_i)
+      if key.to_i <= hash_key.to_i && key.to_i > previous.to_i #key.to_i.between?(previous.to_i,hash_key.to_i)
         responsible_node_key = hash_key
         break
       elsif hash_key.to_i == sorted_hash_keys.last.to_i && hash_key.to_i < key.to_i
@@ -239,6 +267,11 @@ class NodeController < ApplicationController
       response = json[:write_quorum]
     end
     response
+  end
+
+  def is_higher_and_lower_equal_than? value, lower_bound, higher_bound
+    #puts 'is: ' + value.to_s + ' higher and lower-equal than?' + ((value.to_i > lower_bound.to_i) && (value.to_i  <= higher_bound.to_i)).to_s
+    (value.to_i > lower_bound.to_i) && (value.to_i  <= higher_bound.to_i)
   end
 
 end

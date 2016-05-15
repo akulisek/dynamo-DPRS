@@ -36,6 +36,8 @@ docker run -d -p "8400:8400" -p "8500:8500" -p "8600:53/udp"  --name $SD $SD_IMA
 
 DS_IP=$(docker-machine ip $DS_VM)
 
+docker exec $SD /bin/bash /usr/bin/unregister.sh $DS_IP >/dev/null & 
+
 #initialize empty dynamo k-v storage in consul
 curl -X PUT -H "Content-Type: application/json" -d '{}' http://$DS_IP:8500/v1/kv/docker_nodes
 

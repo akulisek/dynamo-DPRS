@@ -1,3 +1,3 @@
 #bin/bash
 
-./unregister.sh &
+/bin/bash /usr/bin/unregister.sh localhost >/dev/null & 

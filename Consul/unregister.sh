@@ -3,7 +3,7 @@
 while [ 1 == 1 ]; do
 	DELETED=0;
 	DELETED_NODES="";
-	SERVICES=$(curl http://localhost:8500/v1/health/state/critical)
+	SERVICES=$(curl http://$1:8500/v1/health/state/critical)
 
 
 	NODES=$(echo $SERVICES | tr ',' '\n'|grep service| cut -d ":" -f3)
@@ -24,7 +24,7 @@ while [ 1 == 1 ]; do
 
 		echo "--------Deleting nodes--------------"
 		for node in $DELETED_NODES; do 
-			curl -X PUT http://localhost:8500/v1/agent/service/deregister/$node
+			curl -X PUT http://$1:8500/v1/agent/service/deregister/$node
 			echo "service $node deleted"
 			DELETED=1;
 		done
@@ -33,5 +33,5 @@ while [ 1 == 1 ]; do
 			DELETED=0;
 		fi
 	fi
-	sleep 15; 
+	sleep 30; 
 done

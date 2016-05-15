@@ -14,10 +14,13 @@ Repository for FIIT STU class (DPRS) project
   <a href="https://www.elastic.co/webinars/introduction-elk-stack">
     <img src="https://raw.githubusercontent.com/blacktop/docker-elk/master/docs/elk-logo.png" alt="ELK stack"/>
   </a>
+  <a href="https://rubyonrails.org">
+    <img src="http://rubyonrails.org/images/rails-logo.svg" alt="Ruby on Rails" width="242"/>
+  </a>
 </p>
 
 ## Setting up the project
-After downloading this repo to a folder you have to run `$ bash init` which will initialize all the necessary docker machines and containers for you.
+Run `$ bash init` which will initialize all the necessary docker machines and containers for you. DynamoDB will consist of 4 Ruby on Rails nodes by default. 
 
 ### Find out about your IPs
 * NGinx (proxy): `$ docker-machine ip sm-docker-0`
@@ -25,14 +28,44 @@ After downloading this repo to a folder you have to run `$ bash init` which will
 * Kibana (dashboard): `$ docker-machine ip docker-LOG`
 
 ### Acess Kibana UI and Consul UI
-* Kibana: http://Kibana_IP:8080
-* Consul: http://Consul_IP:8500
+* Kibana: http://kibana_ip:8080
+* Consul: http://consul_ip:8500
 
 ## Letting go
 If you wish to remove the whole project from your machine feel free to `$ bash uninstall`. This will remove all the docker machines we have created for you with the `init` script automatically.
 
-## Removing containers
-If you want to keep the machines and remove all the containers `init` has run without screwing up the swarm, feel free to run `$ bash remove_containers` and it will do the trick for you.
+## Adding DynamoDB container
+If you want to add another RoR container for your DynamoDB, run `$ bash add_dynamo_node $VM_NAME $ROR_NODE_ID`. VM_NAME should be a valid docker-machine name of the machine you want to run the container on and ROR_NODE_ID should be an unused identified for a RoR container.
+
+## Removing DynamoDB containers
+If you want to keep the machines and remove all the DynamoDB containers created by `init` or you without screwing up the swarm, execute `$ bash remove_dynamo_containers` and it will do the trick for you.
+
+## API
+There are two main functions of the DynamoDB: read and write
+### Read values for given key
+GET `http://proxy_ip/node/read_key?&key=12345` for reading values of key = 12345. 
+If you wish to specify read quorum add another parameter: `http://proxy_ip/node/read_key?&key=12345&read_quorum=2`
+### Store values for given key
+POST `http://proxy_ip/node/write_key` and specify needed request parameters:  
+`{  
+    "key":"113",  
+    "value":"random_value"  
+}`  
+There are some optional parameters:  
+`   
+    "write_quorum":"2",  
+    "vector_clock":{  
+    "68535db237f3=1;a36909a4384f=1;f1f28dd2e53a=0;": {  
+      "68535db237f3": "1",  
+      "value": "some_random_stored_value",  
+      "f1f28dd2e53a": "0",  
+      "a36909a4384f": "1"  
+    }  
+    }  
+`    
+Vector clock can be acquired by calling `read_key` API method for a key that has stored data.  
+
+If you wish to specify read quorum add another parameter: `http://proxy_ip/node/read_key?&key=12345&read_quorum=2`  
 
 ## Progress
 ### 22.3
@@ -58,31 +91,39 @@ TODO and IN_PROGRESS:
 Consul-Template has been successfully integrated and proxy config updates work automatically. We have come across some problems with  (registrator assigned localhost IP => containers were unreachable) - we had to use other Registrator image that could perform well with overlay network. We are currently having some issues with rsyslog init scripts, kibana and logstash should be linked together soon.
 
 IN_PROGRESS:  
--rsyslog / ELK stack integration.  
+-rsyslog / ELK stack integration.   
 
-TODO:
-Dynamo
+TODO:  
+Dynamo  
 
 ### 29.3
 We have successfully finished integrating ELK stack into our system. Logs are being centralized, Kibana is set up (displays logs), we have created single REST API method ($PROXY_IP/dynamo-node-webapp/dynamo/hello/$USER_INPUT) which responds with "Hello $USER_INPUT!" from one of the java app containers. We use Consul's key-value store only for storing logserver's IP atm.
 
-TODO:
-Dynamo
+TODO:  
+Dynamo  
 
 ### 12.5
 We have decided to switch from Java framework to Ruby on Rails (DynamoDB nodes). We have managed to implement consistent hashing (95% done) and currently we are working on read-write quorum, vector clocks and container metrics, service discovery broadcasts and additional SD configuration. 
 
-TODO:
-quorum
-vector clocks
-metrics (zabbix?)
-ELK graphs
-Consul broadcasts
+TODO:  
+quorum  
+vector clocks  
+metrics (zabbix?)  
+ELK graphs  
+Consul broadcasts  
 
 ### 14.5
 Implemented quorum and replication of hash keys across nodes. Whenever node fails / new one registers to network, others acclimatize. New node first gets all the data he will be responsible for after registering to network and afterwards finally joins the network. Consul registers a change of DynamoDB configuration in it's key-value storage and broadcasts all nodes. They then update their data, replicate what is new, delete what is old and not needed of them anymore and adjust to changes. If quorum requirements coudln't be satisfied user gets notified.
 
-TODO:
-vector clocks
-metrics (zabbix?)
-ELK graphs
+TODO:  
+vector clocks  
+metrics (zabbix?)  
+ELK graphs  
+
+### 15.5
+Vector clocks have been successfully implemented. Casualities are dealt with automatically (Hash table datastructure helps). Broadcasts are being tested and so are health checks. The only thing left undone is GUI interface for better UX. That will be implemented tomorrow along with some basic graphs in ELK.
+
+TODO:  
+metrics (zabbix?)  
+ELK graphs  
+GUI  

@@ -6,7 +6,7 @@ require 'net/http'
 require 'base64'
                                      
 encoded_conf = JSON.parse(STDIN.read)         
-dynamo_nodes = Base64.decode64(encoded_conf["Value"])
+dynamo_nodes = JSON.parse(Base64.decode64(encoded_conf["Value"]))
 
 dynamo_nodes.each do |ip_port,data|
 	url = 'http://'+ip_port+'/node/update_configuration'

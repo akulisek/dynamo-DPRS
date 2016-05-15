@@ -138,7 +138,13 @@ class NodeController < ApplicationController
       log_message('Container with key: ' + removed_node.to_s + ' was removed from dynamo')
 
       removed_after_myself = (new_sorted_hash_keys[(hash_new[@@my_key] + 2) % hash_new.size] != old_sorted_hash_keys[(hash_old[@@my_key] + 2) % hash_old.size] )
-      removed_before_myself = (new_sorted_hash_keys[(hash_new[@@my_key] - 1) % hash_new.size] != old_sorted_hash_keys[(hash_old[@@my_key] - 2) % hash_old.size] )
+      removed_before_myself = (new_sorted_hash_keys[(hash_new[@@my_key] - 1) % hash_new.size] == old_sorted_hash_keys[(hash_old[@@my_key] - 2) % hash_old.size] )
+      log_message('Removed after myself: ' + removed_after_myself.to_s + ' ; Removed before myself: ' + removed_before_myself.to_s +
+                      ' ; new after: ' + new_sorted_hash_keys[(hash_new[@@my_key] + 2) % hash_new.size].to_s +
+                      ' ; old after: ' + old_sorted_hash_keys[(hash_old[@@my_key] + 2) % hash_old.size].to_s +
+                      ' ; new before: ' + new_sorted_hash_keys[(hash_new[@@my_key] - 1) % hash_new.size].to_s +
+                      ' ; old before: ' + old_sorted_hash_keys[(hash_old[@@my_key] - 2) % hash_old.size].to_s
+      )
 
       uri = nil
       if removed_after_myself

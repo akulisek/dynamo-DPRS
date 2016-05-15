@@ -15,23 +15,36 @@ class NodeController < ApplicationController
     logger.warn 'Dynamo nodes: ' + @@dynamo_nodes.to_s
   end
 
+  def read_key_vector_clocks key
+    response = @@key_value_storage[key]
+    if response.nil?
+      nodes = get_responsible_nodes(key)
+      name, data = VectorClock.create(nil, nodes.inject([]) { |array, node| array << node.second['container_id'] })
+      response = { name.to_s => data }
+    end
+    response
+  end
+
   def read_key_value
     if can_serve_request?(params[:key])
       if params[:coordinated]
         log_message('Reading key, request is coordinated:'+params[:key])
-        response = @@key_value_storage[params[:key]]
+        response = read_key_vector_clocks(params[:key])
       else
         log_message('Coordinating read key:'+params[:key])
         accept_counter = 0
         read_quorum = params[:read_quorum].to_i || 0 #parse_quorum_json(params[:quorum], :read)
-
-        response = []
-        responses = coordinate_request(:get)
-        log_message('Coordinated response: ' + responses.to_s )
-        responses.each { |r| accept_counter +=1 unless r.nil?; response << r unless r.nil?}
-
-        unless accept_counter >= read_quorum
-          response = 'Sorry, request quorum was not satisfied by DynamoDB'
+        if read_quorum > ENV['REPLICATION'].to_i
+          response = 'Quorum can not be satisfied, not enough replications'
+        else
+          response = []
+          responses, count = coordinate_request(:get)
+          log_message('Coordinated response: ' + responses.to_s )
+          #responses.each { |r| accept_counter +=1 unless r.nil?; response << r unless r.nil?}
+          response = responses
+          unless count >= read_quorum
+            response = 'Sorry, request quorum was not satisfied by DynamoDB'
+          end
         end
       end
     else
@@ -49,19 +62,22 @@ class NodeController < ApplicationController
     if can_serve_request?(params[:key])
       if params[:coordinated]
         log_message('Writing key, request is coordinated::' + params[:key] + ' with value:' + params[:value])
-        store_value(params[:key], params[:value])
+        store_value(params[:key], params[:value], params[:vector_clock], params[:container_id])
         response = @@key_value_storage[params[:key]] || 'Storing value failed'
       else
         log_message('Coordinating write key:'+params[:key])
         accept_counter = 0
         write_quorum = params[:write_quorum].to_i || 0 #parse_quorum_json(params[:quorum], :write)
-
-        response = []
-        responses = coordinate_request(:post)
-        responses.each { |r| accept_counter +=1 unless r.nil?; response << r unless r.nil?}
-
-        unless accept_counter >= write_quorum
-          response = 'Sorry, request quorum was not satisfied by DynamoDB'
+        if write_quorum > ENV['REPLICATION'].to_i
+          response = 'Quorum can not be satisfied, not enough replications'
+        else
+          response = []
+          responses, count = coordinate_request(:post)
+          #responses.each { |r| accept_counter +=1 unless r.nil?; response << r unless r.nil?}
+          response = responses
+          unless count >= write_quorum
+            response = 'Sorry, request quorum was not satisfied by DynamoDB'
+          end
         end
       end
     else
@@ -169,10 +185,12 @@ class NodeController < ApplicationController
             '&to=' + old_sorted_hash_keys[(hash_old[@@my_key] - 2) % hash_old.size]
       end
       if uri
-        log_message('Getting new data after removing a contaniner from: ' + uri)
+        log_message('Getting new data after removing a container from: ' + uri)
         response = JSON.parse(HTTPService.get_request(uri).body)['response']
-        response.each do |key, value|
-          store_value(key, value)
+        if response
+          response.each do |key, value|
+          replicate_key_values(key, value)
+          end
         end
       end
     elsif new_config.size > @@dynamo_nodes.size
@@ -247,7 +265,7 @@ class NodeController < ApplicationController
       if data.first.second.in?(nodes_to_be_replicated)
         data = JSON.parse(HTTPService.get_request('http://' + ip.to_s + '/node/get_data').body)['response']
         data.each do |key, value|
-          store_value(key, value)
+          store_value_simply(key, value)
         end
       end
     end
@@ -281,7 +299,7 @@ class NodeController < ApplicationController
     end
     data = {}
     @@key_value_storage.each do | key, value|
-      puts key+"=>"+value
+      puts key+"=>"+value.to_s
       if lower_bound < higher_bound
         puts 'FIRST CASE: lower_bound: ' + lower_bound.to_s + ' higher_bound: ' + higher_bound.to_s
         data[key] = value if is_higher_and_lower_equal_than?(key, lower_bound, higher_bound)
@@ -302,39 +320,85 @@ class NodeController < ApplicationController
     @@dynamo_nodes = JSON.parse(response.body)
   end
 
-  def store_value key, value
+  # key = some_hash_key; value = { :value = "1231", "container_id1" => "iteration1", "container_id2" => "iteration2", ... }
+  def store_value key, value, vector_clock, container_id
+    if @@key_value_storage[key]
+      old_name = VectorClock.get_name(vector_clock)
+      log_message('Old vector clock name: ' + old_name + ' vector clock: ' + vector_clock.to_s)
+      name, new_data = VectorClock.update_data(vector_clock.values.first, container_id, value)
+      if @@key_value_storage[key][name] = new_data
+        @@key_value_storage[key].delete(old_name)
+      end
+    else
+      if vector_clock == nil
+        nodes = get_responsible_nodes(params[:key])
+        name, data = VectorClock.create(nil, nodes.inject([]) { |array, node| array << node.second['container_id']})
+        name, data = VectorClock.update_data(data, container_id, value)
+        @@key_value_storage[key] = { name.to_s => data }
+
+        log_message('No vector clock provided, initialized new vector clock: ' + key.to_s +
+                       ' value: ' + value.to_s +
+                       ' vector_clock: ' + vector_clock.to_s +
+                       ' container_id: ' + container_id
+        )
+      else
+        name, new_data = VectorClock.update_data(vector_clock.values.first, container_id, value)
+        @@key_value_storage[key] = { name.to_s => new_data }
+      end
+    end
+  end
+
+  # overwrites existing data and it's vector clocks
+  def store_value_simply key, value
     @@key_value_storage[key] ||= value if key
+  end
+
+  # replicate key and it's values with vector clocks
+  def replicate_key_values key, value
+    unless @@key_value_storage[key]
+      @@key_value_storage[key] = value
+    else
+      existing_vector_clocks = @@key_value_storage[key]
+      value.select { |k, _v| !k.in?(existing_vector_clocks)}.each { |vector_clock, vector_clock_data| @@key_value_storage[key][vector_clock] = vector_clock_data}
+    end
   end
 
   def coordinate_request type
     nodes = get_responsible_nodes(params[:key])
     log_message('Coordinating request for ' + nodes.size.to_s + ' nodes and type: ' + (type == :get).to_s )
-    coordinated_response = []
+    coordinated_response = {}
+    responses_count = 0
     nodes.each_with_index do |(key, value),index|
       if @@my_key != value.first.second
         if type == :get
           log_message('Redirecting coordinated request to:' + 'http://' + key + '/node/read_key?&key=' + params[:key] + '&correlation_id=' + params[:correlation_id] + '&coordinated=true')
           response = HTTPService.get_request('http://' + key + '/node/read_key?&key=' + params[:key] + '&correlation_id=' + params[:correlation_id] + '&coordinated=true')
           log_message('Coordinated response body:' + response.body.to_s)
-          coordinated_response << (JSON.parse(response.body) unless response.nil? || nil)
+          parsed_response = (JSON.parse(response.body) unless response.nil? || nil)
         elsif type == :post
-          log_message('Redirecting coordinated request to:' + 'http://' + key + '/node/write_key with data: ' + { :key => params[:key], :value => params[:value], :correlation_id => params[:correlation_id], :coordinated => true}.to_s)
-          response = HTTPService.post_request('http://' + key + '/node/write_key', { :key => params[:key], :value => params[:value], :correlation_id => params[:correlation_id], :coordinated => true})
+          log_message('Redirecting coordinated request to:' + 'http://' + key + '/node/write_key with data: ' + { :key => params[:key], :value => params[:value], :correlation_id => params[:correlation_id], :vector_clock => params[:vector_clock], :container_id => params[:container_id], :coordinated => true}.to_s)
+          response = HTTPService.post_request('http://' + key + '/node/write_key', { :key => params[:key], :value => params[:value], :correlation_id => params[:correlation_id], :vector_clock => params[:vector_clock], :container_id => ENV['HOSTNAME'], :coordinated => true})
           log_message('Coordinated response body:' + response.body.to_s)
-          coordinated_response << (JSON.parse(response.body) unless response.nil? || nil)
+          parsed_response = (JSON.parse(response.body) unless response.nil? || nil)
         end
       else
         if type == :get
           log_message('Reading key:' + params[:key])
-          coordinated_response << { 'response' => @@key_value_storage[params[:key]]}
+          parsed_response = { 'response' => read_key_vector_clocks(params[:key])}
         elsif type == :post
           log_message('Writing key:' + params[:key] + ' with value:' + params[:value])
-          store_value(params[:key], params[:value])
-          coordinated_response << { 'response' => (@@key_value_storage[params[:key]] || 'Storing value failed') }
+          vector_clock = deep_copy(params[:vector_clock]) # this has to be a new object, passing params[:vector_clock] will change it
+          store_value(params[:key], params[:value], vector_clock, ENV['HOSTNAME'])
+          parsed_response = { 'response' => (read_key_vector_clocks(params[:key]) || { 'Error' => 'Storing value failed'} ) }
         end
       end
+      responses_count += 1 if parsed_response
+      log_message('Parsed response: ' + parsed_response.to_s)
+      parsed_response['response'].each do | vector_clock_name, data|
+        coordinated_response[vector_clock_name] = data
+      end
     end
-    coordinated_response
+    return coordinated_response, responses_count
   end
 
   def designate_coordinator type
@@ -349,8 +413,8 @@ class NodeController < ApplicationController
           log_message('Response body:' + response.body.to_s)
           return response.body
         elsif type == :post
-          log_message('Redirecting request to:' + 'http://' + key + '/node/write_key with data: ' + { :key => params[:key], :value => params[:value], :correlation_id => params[:correlation_id]}.to_s)
-          response = HTTPService.post_request('http://' + key + '/node/write_key', { :key => params[:key], :value => params[:value], :correlation_id => params[:correlation_id]})
+          log_message('Redirecting request to:' + 'http://' + key + '/node/write_key with data: ' + { :key => params[:key], :value => params[:value], :correlation_id => params[:correlation_id], :vector_clock => params[:vector_clock]}.to_s)
+          response = HTTPService.post_request('http://' + key + '/node/write_key', { :key => params[:key], :value => params[:value], :correlation_id => params[:correlation_id], :vector_clock => params[:vector_clock]})
           log_message('Response body:' + response.body.to_s)
           return response.body
         end
@@ -434,6 +498,11 @@ class NodeController < ApplicationController
     puts 'is: ' + value.to_s + ' higher and lower-equal than?' + ((value.to_i > lower_bound.to_i) && (value.to_i  <= higher_bound.to_i)).to_s
     puts 'lower_bound: ' + lower_bound.to_s + ' higher_bound: ' + higher_bound.to_s
     (value.to_i > lower_bound.to_i) && (value.to_i  <= higher_bound.to_i)
+  end
+
+  # needed so that vector_clocks are not changed by coordinator
+  def deep_copy(o)
+    Marshal.load(Marshal.dump(o))
   end
 
 end

@@ -36,7 +36,7 @@ if !response.body || response.body.empty? || response.body.length == 0
 end
 
 dynamo_nodes = JSON.parse(response.body)
-IO.write('/tmp/watches.log', "current config:\n"+dynamo_nodes+"\n", mode: 'a')
+IO.write('/tmp/watches.log', "current config:\n"+dynamo_nodes.to_json+"\n", mode: 'a')
 
 #iterate over config, removing nodes that are not in current_ips
 nodes_removed = 0;
@@ -49,8 +49,8 @@ dynamo_nodes.delete_if do |ip_port,data|
 		false
 	end
 end
-IO.write('/tmp/watches.log', "removed:"+nodes_removed+" nodes\n", mode: 'a')
-IO.write('/tmp/watches.log', "new config:\n"+dynamo_nodes+"\n", mode: 'a')
+IO.write('/tmp/watches.log', "removed:"+nodes_removed.to_s+" nodes\n", mode: 'a')
+IO.write('/tmp/watches.log', "new config:\n"+dynamo_nodes.to_json+"\n", mode: 'a')
 
 # only update config if at least one node was removed (KV watch would be triggered if we post same config)
 if nodes_removed > 0

@@ -53,8 +53,7 @@ docker build -t ng --build-arg CONSUL=$(docker-machine ip $DS_VM) ./nginx/
 #run log container
 eval $(docker-machine env $VM_2)
 docker build -t $LOG_IMAGE ./Logs/
-docker run -itd -p 8080:80 -p 5000:5000 -p 5000:5000/udp --net=$NETWORK_NAME --name "$LOG_INSTANCE"1 --env="constraint:node==$LOG_VM" -e CONSUL_IP=$DS_IP -e LOG_HOST_IP=$LOG_IP $LOG_IMAGE
-
+./logstash_generator.sh -vm $VM_2 -ds $DS_IP -name "$LOG_INSTANCE" -image "$LOG_IMAGE"
 
 #run rails webapps
 docker build -t $RAILS_NODE_IMAGE ./rails-node-app/

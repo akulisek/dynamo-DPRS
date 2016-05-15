@@ -6,8 +6,6 @@
 
 # default parameters
 
-VM_1="null"
-DS_IP="null"
 PROXY="proxy"
 VM_1="null"
 NETWORK_NAME="private-network"
@@ -27,14 +25,14 @@ do
 		;;
 	-name)
 
-		PROXY="$VALUE"
+		LOG_INSTANCE="$VALUE"
 		;;
 	-image)
 
-		NG_IMAGE="$VALUE"
+		LOG_IMAGE="$VALUE"
 		;;
 	-vm)
-		VM_1="$VALUE"
+		LOG_VM="$VALUE"
 		;;
 	-ds)
 		DS_IP="$VALUE"
@@ -49,16 +47,12 @@ done
 
 ID_CONTAINER=$[RANDOM % 10 + 1]
 UUID=$(cat /proc/sys/kernel/random/uuid)
-IP=$(docker-machine ip $VM_1)
-echo "tu3"
-docker run -itd -p 80:80 --name=$PROXY$ID_CONTAINER --net=$NETWORK_NAME --env="constraint:node==$VM_1" ng
-echo "tu"
-json="{ \"ID\": \"$UUID\", \"Name\": \"$PROXY\", \"Address\": \"$IP\", \"Port\": 80, \"check\": { \"name\": \"web-proxy\",  \"http\": \"http://$IP:80/health/\", \"interval\": \"10s\", \"timeout\": \"5s\", \"status\": \"passing\"}}"
+LOG_IP=$(docker-machine ip $LOG_VM)
+
+docker run -itd -p 8080:80 -p 5000:5000 -p 5000:5000/udp --net=$NETWORK_NAME --name "$LOG_INSTANCE$ID_CONTAINER" --env="constraint:node==$LOG_VM" -e CONSUL_IP=$DS_IP -e LOG_HOST_IP=$LOG_IP $LOG_IMAGE
+
+json="{ \"ID\": \"$UUID\", \"Name\": \"$LOG_INSTANCE\", \"Address\": \"$LOG_IP\", \"Port\": 8080, \"check\": { \"name\": \"web-log\",  \"http\": \"http://$LOG_IP:8080\", \"interval\": \"10s\", \"timeout\": \"5s\", \"status\": \"passing\"}}"
 
 echo $json > ./temporary.json
-
 curl -X PUT --data-binary @temporary.json http://$DS_IP:8500/v1/agent/service/register
-
 rm ./temporary.json
-
-

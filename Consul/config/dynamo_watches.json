@@ -1,0 +1,13 @@
+{
+	"watches": [{
+		"type": "service",
+		"service": "rails-image-3000",
+		"handler": "/usr/bin/config_updater.rb"
+		},
+		{
+		"type": "key",
+		"key": "docker_nodes",
+		"handler": "/usr/bin/config_notifier.rb"
+		}
+	]
+}

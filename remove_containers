@@ -5,3 +5,5 @@
 eval $(docker-machine env --swarm sm-docker-0)
 docker rm -f $(docker ps --format "{{.Names}}")
 
+eval $(docker-machine env docker-SD)
+docker rm -f $(docker ps --format "{{.Names}}")

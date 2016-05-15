@@ -36,9 +36,6 @@ docker run -d -p "8400:8400" -p "8500:8500" -p "8600:53/udp"  --name $SD $SD_IMA
 
 DS_IP=$(docker-machine ip $DS_VM)
 
-#initialize empty dynamo k-v storage in consul
-curl -X PUT -H "Content-Type: application/json" -d '{}' http://$DS_IP:8500/v1/kv/docker_nodes
-
 #run new virtual machines swarm and host
 docker-machine create -d virtualbox --swarm --swarm-master --swarm-discovery="consul://$DS_IP:8500" --engine-opt="cluster-store=consul://$DS_IP:8500" --engine-opt="cluster-advertise=eth1:2376" $VM_1 
 docker-machine create -d virtualbox --swarm --swarm-discovery="consul://$DS_IP:8500" --engine-opt="cluster-store=consul://$DS_IP:8500" --engine-opt="cluster-advertise=eth1:0" $VM_2
@@ -46,7 +43,7 @@ docker-machine create -d virtualbox --swarm --swarm-discovery="consul://$DS_IP:8
 
 
 #set overlayer network and run nginx
-eval $(docker-machine env $VM_1)
+eval $(docker-machine env --swarm $VM_1)
 docker network create --subnet=$NETWORK -d overlay $NETWORK_NAME 
 docker run -d -v /var/run/docker.sock:/tmp/docker.sock --net=$NETWORK_NAME -h registrator --name registratorSW1 kidibox/registrator -internal consul://$DS_IP:8500
 docker build -t ng --build-arg CONSUL=$(docker-machine ip $DS_VM) ./nginx/
@@ -96,6 +93,9 @@ docker run -d -v /var/run/docker.sock:/tmp/docker.sock --net=$NETWORK_NAME -h re
 docker run  -itd -p 514/udp -p 514/tcp -p 8080 --net=$NETWORK_NAME --name "$NODE"1 --env="constraint:node==$VM_2" -e CONSUL_IP=$DS_IP $NODE_IMAGE
 docker run  -itd -p 514/udp -p 514/tcp -p 8080 --net=$NETWORK_NAME --name "$NODE"2 --env="constraint:node==$VM_2" -e CONSUL_IP=$DS_IP $NODE_IMAGE 
 docker run  -itd -p 514/udp -p 514/tcp -p 8080 --net=$NETWORK_NAME --name "$NODE"3 --env="constraint:node==$VM_2" -e CONSUL_IP=$DS_IP $NODE_IMAGE 
+
+#initialize empty dynamo k-v storage in consul
+curl -X PUT -H "Content-Type: application/json" -d '{}' http://$DS_IP:8500/v1/kv/docker_nodes
 
 #run rails webapps
 docker build -t $RAILS_NODE_IMAGE ./rails-node-app/

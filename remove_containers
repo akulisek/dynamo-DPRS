@@ -3,5 +3,7 @@
 ##########################################
 
 eval $(docker-machine env --swarm sm-docker-0)
-docker rm -f $(docker ps --format "{{.Names}}")
+docker rm -f $(docker ps --format "{{.Names}}" | grep -v proxy)
 
+eval $(docker-machine env docker-SD)
+docker rm -f $(docker ps --format "{{.Names}}")

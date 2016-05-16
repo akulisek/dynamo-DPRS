@@ -15,6 +15,10 @@ upstream app {
 server {
   listen 80;
 
+  location /health/ {
+		return 200;
+	}
+
    location / {
 		proxy_pass http://app;
 		proxy_set_header correlation_id $request_uuid;

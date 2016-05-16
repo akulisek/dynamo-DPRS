@@ -371,13 +371,13 @@ class NodeController < ApplicationController
     nodes.each_with_index do |(key, value),index|
       if @@my_key != value.first.second
         if type == :get
-          log_message('Redirecting coordinated request to:' + 'http://' + key + '/node/read_key?&key=' + params[:key] + '&correlation_id=' + params[:correlation_id] + '&coordinated=true')
-          response = HTTPService.get_request('http://' + key + '/node/read_key?&key=' + params[:key] + '&correlation_id=' + params[:correlation_id] + '&coordinated=true')
+          log_message('Redirecting coordinated request to:' + 'http://' + key + '/node/read_key?&key=' + params[:key] + '&read_quorum=' + params[:read_quorum] + '&correlation_id=' + params[:correlation_id] + '&coordinated=true')
+          response = HTTPService.get_request('http://' + key + '/node/read_key?&key=' + params[:key] + '&read_quorum=' + params[:read_quorum] + '&correlation_id=' + params[:correlation_id] + '&coordinated=true')
           log_message('Coordinated response body:' + response.body.to_s)
           parsed_response = (JSON.parse(response.body) unless response.nil? || nil)
         elsif type == :post
-          log_message('Redirecting coordinated request to:' + 'http://' + key + '/node/write_key with data: ' + { :key => params[:key], :value => params[:value], :correlation_id => params[:correlation_id], :vector_clock => params[:vector_clock], :container_id => params[:container_id], :coordinated => true}.to_s)
-          response = HTTPService.post_request('http://' + key + '/node/write_key', { :key => params[:key], :value => params[:value], :correlation_id => params[:correlation_id], :vector_clock => params[:vector_clock], :container_id => ENV['HOSTNAME'], :coordinated => true})
+          log_message('Redirecting coordinated request to:' + 'http://' + key + '/node/write_key with data: ' + { :key => params[:key], :value => params[:value], :write_quorum => params[:write_quorum], :correlation_id => params[:correlation_id], :vector_clock => params[:vector_clock], :container_id => params[:container_id], :coordinated => true}.to_s)
+          response = HTTPService.post_request('http://' + key + '/node/write_key', { :key => params[:key], :value => params[:value], :write_quorum => params[:write_quorum], :correlation_id => params[:correlation_id], :vector_clock => params[:vector_clock], :container_id => ENV['HOSTNAME'], :coordinated => true})
           log_message('Coordinated response body:' + response.body.to_s)
           parsed_response = (JSON.parse(response.body) unless response.nil? || nil)
         end
@@ -408,13 +408,13 @@ class NodeController < ApplicationController
     nodes.each_with_index do |(key, value),index|
       if index == rand_index
         if type == :get
-          log_message('Redirecting request to:' + 'http://' + key + '/node/read_key?&key=' + params[:key] + '&correlation_id=' + params[:correlation_id])
-          response = HTTPService.get_request('http://' + key + '/node/read_key?&key=' + params[:key] + '&correlation_id=' + params[:correlation_id])
+          log_message('Redirecting request to:' + 'http://' + key + '/node/read_key?&key=' + params[:key] + '&read_quorum=' + params[:read_quorum] + '&correlation_id=' + params[:correlation_id])
+          response = HTTPService.get_request('http://' + key + '/node/read_key?&key=' + params[:key] + '&read_quorum=' + params[:read_quorum] + '&correlation_id=' + params[:correlation_id])
           log_message('Response body:' + response.body.to_s)
           return response.body
         elsif type == :post
-          log_message('Redirecting request to:' + 'http://' + key + '/node/write_key with data: ' + { :key => params[:key], :value => params[:value], :correlation_id => params[:correlation_id], :vector_clock => params[:vector_clock]}.to_s)
-          response = HTTPService.post_request('http://' + key + '/node/write_key', { :key => params[:key], :value => params[:value], :correlation_id => params[:correlation_id], :vector_clock => params[:vector_clock]})
+          log_message('Redirecting request to:' + 'http://' + key + '/node/write_key with data: ' + { :key => params[:key], :value => params[:value], :write_quorum => params[:write_quorum], :correlation_id => params[:correlation_id], :vector_clock => params[:vector_clock]}.to_s)
+          response = HTTPService.post_request('http://' + key + '/node/write_key', { :key => params[:key], :value => params[:value], :write_quorum => params[:write_quorum], :correlation_id => params[:correlation_id], :vector_clock => params[:vector_clock]})
           log_message('Response body:' + response.body.to_s)
           return response.body
         end

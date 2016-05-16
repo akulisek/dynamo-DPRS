@@ -1,2 +1,139 @@
-<h1> HI </h1>
-<p> this is rails-webapp node#index!</p>
+<div class="container" style="margin-top: 30px">
+  <div class="row" style="margin-bottom: 50px">
+    <div class="col-lg-12">
+        <h2>Zadanie z predmetu Distribuované programové systémy</h2>
+        <h3>Filip Jurčacko, Adam Kulíšek, Rami Mtier</h3>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-6 col-md-6 col-xs-6 ">
+      <div class="panel panel-default">
+        <div class="panel-body form-horizontal">
+          <div class="form-group">
+            <div class="col-sm-3 >
+                                <label control-label">Key:
+            </div>
+            <div class="col-sm-9">
+              <input type="text" class="form-control" name="key" id="input-write-key"/>
+            </div>
+            <div class="col-sm-3 >
+                                <label control-label">Value:
+            </div>
+            <div class="col-sm-9">
+              <input type="text" class="form-control" name="value" id="input-write-value"/>
+            </div>
+            <h4 style="margin-left:10px">Optional:</h4>
+            <div class="col-sm-3 >
+                                <label control-label">Write quorum:
+            </div>
+            <div class="col-sm-9">
+              <input type="text" class="form-control" name="quorum" id="input-write-quorum"/>
+            </div>
+            <hr>
+            <div class="col-sm-3 >
+                                <label control-label">Vector clock:
+            </div>
+            <div class="col-sm-9">
+              <input type="text" class="form-control" name="vector_clock" id="input-vector-clock"/>
+            </div>
+          </div>
+          <div style="text-align:center">
+            <button type="button" class="btn btn-success" onclick="postDynamoData()" style="width:50%">Write data</button>
+          </div>
+          <ul class="list-group" id="postDynamoResultData">
+
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6 col-md-6 col-xs-6 ">
+      <div class="panel panel-default">
+        <div class="panel-body form-horizontal">
+          <div class="form-group">
+            <div class="col-sm-3 >
+                                <label control-label">Key:
+            </div>
+            <div class="col-sm-9">
+              <input type="text" class="form-control" name="key" id="input-read-key"/>
+            </div>
+            <div class="col-sm-3 >
+                                <label control-label">Read quorum:
+            </div>
+            <div class="col-sm-9">
+              <input type="text" class="form-control" name="quorum" id="input-read-quorum"/>
+            </div>
+          </div>
+          <div style="text-align:center">
+            <button type="button" class="btn btn-primary" onclick="getDynamoData()" style="width:50%">Get data</button>
+          </div>
+          <ul class="list-group" id="getDynamoResultData">
+
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+    function getDynamoData() {
+        var key = $("#input-read-key").val();
+        var quorum = $("#input-read-quorum").val();
+        $.ajax({
+            dataType: "json",
+            url: "http://192.168.99.101:80/node/read_key?&key="+key+"&read_quorum="+quorum+"&correlation_id=3023",
+            success: function (result) {
+                var res = '';
+                $.each(result, function (k,v) {
+                    if (v.constructor == String) {
+                        res += "<li class=\"list-group-item\">" + JSON.stringify(v) + "</li>";
+                    }
+                    else {
+                        $.each(v, function (k,v) {
+                            res += "<li class=\"list-group-item\">" + "\""+ k + "\""+ "  ===>  " + JSON.stringify(v) + "</li>";
+                        });
+                    }
+                });
+                $("#getDynamoResultData").html($.parseHTML(res));
+            }
+        });
+    }
+    function postDynamoData() {
+        var key = $("#input-write-key").val();
+        var value = $("#input-write-value").val();
+        var quorum = $("#input-write-quorum").val();
+        var vectorclock = $("#input-vector-clock").val();
+        var data = {
+            'key': key,
+            'value': value,
+            'node': {
+                'key': key,
+                'value': value
+            }
+        };
+        if (quorum) { data['write_quorum'] = quorum; }
+        if (vectorclock) { data['vector_clock'] = jQuery.parseJSON('{'+vectorclock+'}'); }
+        $.ajax({
+            type: "POST",
+            dataType: "json",
+            url: "http://192.168.99.101:80/node/write_key",
+            data: data,
+            success: function (result) {
+                var res = '';
+                $.each(result, function (k,v) {
+                    if (v.constructor == String) {
+                        res += "<li class=\"list-group-item\">" + JSON.stringify(v) + "</li>";
+                    }
+                    else {
+                        $.each(v, function (k,v) {
+                            res += "<li class=\"list-group-item\">" + "\""+ k + "\""+ ":" + JSON.stringify(v) + "</li>";
+                        });
+                    }
+                });
+                $("#postDynamoResultData").html($.parseHTML(res));
+            }
+        });
+    }
+</script>

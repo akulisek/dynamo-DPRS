@@ -40,6 +40,12 @@ If you want to add another RoR container for your DynamoDB, run `$ bash add_dyna
 ## Removing DynamoDB containers
 If you want to keep the machines and remove all the DynamoDB containers created by `init` or you without screwing up the swarm, execute `$ bash remove_dynamo_containers` and it will do the trick for you.
 
+## GUI
+You can acess the GUI at http://`$ docker-machine ip sm-docker-0`/. You can read and write values for a specific hash key. You don't need to specify vector clock when writing value for a key for the first time, although you can (given that you have already read that key and DynamoDB returned initial vector clock). On the other hand, you have to provide vector clock when storing value for a key that you have already stored some value for, otherwise DynamoDB will assign new vector clock for that value (DynamoDB treats the value as a completely new version of the object).  
+This is what the GUI looks like:  
+![alt tag](https://github.com/akulisek/Dynamo/blob/origin/modified-consul/GUI-screenshot.png)
+
+
 ## API
 There are two main functions of the DynamoDB: read and write
 ### Read values for given key

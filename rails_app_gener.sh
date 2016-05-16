@@ -70,7 +70,7 @@ echo "---------Creating rails app---------"
 
 PORT=$[RANDOM % 64530 + 1024]
 ID_CONTAINER=$[RANDOM % 1000 + 1]
-UUID=$(cat /proc/sys/kernel/random/uuid)
+UUID=$(uuidgen)
 IP=$(docker-machine ip $VM_2)
 
 json="{ \"ID\": \"$UUID\", \"Name\": \"$RAILS_NODE\", \"Address\": \"$OVER_IP\", \"Port\": 3000, \"check\": { \"name\": \"web-check\",  \"http\": \"http://$IP:$PORT\", \"interval\": \"20s\", \"timeout\": \"5s\", \"status\": \"passing\"}}"

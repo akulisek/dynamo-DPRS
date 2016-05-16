@@ -46,7 +46,7 @@ done
 #############################################
 
 ID_CONTAINER=$[RANDOM % 10 + 1]
-UUID=$(cat /proc/sys/kernel/random/uuid)
+UUID=$(uuidgen)
 LOG_IP=$(docker-machine ip $LOG_VM)
 
 docker run -itd -p 8080:80 -p 5000:5000 -p 5000:5000/udp --net=$NETWORK_NAME --name "$LOG_INSTANCE$ID_CONTAINER" --env="constraint:node==$LOG_VM" -e CONSUL_IP=$DS_IP -e LOG_HOST_IP=$LOG_IP $LOG_IMAGE

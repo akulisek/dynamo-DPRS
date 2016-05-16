@@ -48,7 +48,7 @@ done
 #############################################
 
 ID_CONTAINER=$[RANDOM % 10 + 1]
-UUID=$(cat /proc/sys/kernel/random/uuid)
+UUID=$(uuidgen)
 IP=$(docker-machine ip $VM_1)
 echo "tu3"
 docker run -itd -p 80:80 --name=$PROXY$ID_CONTAINER --net=$NETWORK_NAME --env="constraint:node==$VM_1" ng

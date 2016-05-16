@@ -38,16 +38,13 @@ DS_IP=$(docker-machine ip $DS_VM)
 
 docker exec $SD /bin/bash /usr/bin/unregister.sh $DS_IP >/dev/null & 
 
-#initialize empty dynamo k-v storage in consul
-curl -X PUT -H "Content-Type: application/json" -d '{}' http://$DS_IP:8500/v1/kv/docker_nodes
-
 #run new virtual machines swarm and host
 docker-machine create -d virtualbox --swarm --swarm-master --swarm-discovery="consul://$DS_IP:8500" --engine-opt="cluster-store=consul://$DS_IP:8500" --engine-opt="cluster-advertise=eth1:2376" $VM_1 
 docker-machine create -d virtualbox --swarm --swarm-discovery="consul://$DS_IP:8500" --engine-opt="cluster-store=consul://$DS_IP:8500" --engine-opt="cluster-advertise=eth1:0" $VM_2
 
 
 #set overlayer network and run nginx
-eval $(docker-machine env $VM_1)
+eval $(docker-machine env --swarm $VM_1)
 docker network create --subnet=$NETWORK -d overlay $NETWORK_NAME 
 docker build -t ng --build-arg CONSUL=$(docker-machine ip $DS_VM) ./nginx/
 ./nginx_generator.sh -vm $VM_1 -ds $DS_IP -name "$PROXY" 
@@ -58,6 +55,11 @@ docker build -t $LOG_IMAGE ./Logs/
 ./logstash_generator.sh -vm $VM_2 -ds $DS_IP -name "$LOG_INSTANCE" -image "$LOG_IMAGE"
 
 #run rails webapps
+
+sleep 15
+#initialize empty dynamo k-v storage in consul
+curl -X PUT -H "Content-Type: application/json" -d '{}' http://$DS_IP:8500/v1/kv/docker_nodes
+
 docker build -t $RAILS_NODE_IMAGE ./rails-node-app/
 ./rails_app_gener.sh -vm $VM_2 -ds $DS_IP -name "$RAILS_NODE" -image "$RAILS_NODE_IMAGE" -r "$REPLICATION" -d $DYN_MAX_KEY
 ./rails_app_gener.sh -vm $VM_2 -ds $DS_IP -name "$RAILS_NODE" -image "$RAILS_NODE_IMAGE" -r "$REPLICATION" -d $DYN_MAX_KEY

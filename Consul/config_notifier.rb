@@ -19,8 +19,11 @@ IO.write('/tmp/watches.log', "Response: "+response.body+"\n", mode: 'a')
 
 checks = JSON.parse(response.body)
 checks.each do |check|
-#parse ip:port from check response - "Output":"HTTP GET http://192.168.99.102:19305: 200 OK 
+#parse ip:port from check response - "Output":"HTTP GET http://192.168.99.102:19305: 200 OK
 	output = check["Checks"][0]["Output"]
+	if output.empty? || !(output.start_with?('HTTP GET'))
+			next
+	end
 	ip_port = output.split(' ')[2][0..-2]
 	if ip_port.start_with?('http')
 		#contact..
@@ -32,4 +35,3 @@ checks.each do |check|
 		response = http.request(request)
 	end
 end
-

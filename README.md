@@ -20,7 +20,7 @@ Repository for FIIT STU class (DPRS) project
 </p>
 
 ## Setting up the project
-Run `$ bash init` which will initialize all the necessary docker machines and containers for you. DynamoDB will consist of 4 Ruby on Rails nodes by default. 
+Run `$ bash init.sh` which will initialize all the necessary docker machines and containers for you. DynamoDB will consist of 3 Ruby on Rails nodes by default. 
 
 ### Find out about your IPs
 * NGinx (proxy): `$ docker-machine ip sm-docker-0`

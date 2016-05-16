@@ -38,7 +38,7 @@ end
 dynamo_nodes = JSON.parse(response.body)
 IO.write('/tmp/watches.log', "current config:\n"+dynamo_nodes.to_json+"\n", mode: 'a')
 
-#iterate over config, removing nodes that are not in current_ips
+#iterate over config, removing nodes that are not in current_ips 
 nodes_removed = 0;
 dynamo_nodes.delete_if do |ip_port,data|
 	ip = ip_port.partition(':')[0]

@@ -9,8 +9,8 @@ IO.write('/tmp/watches.log', "config_notifier called\n", mode: 'a')
 #read stdin, unused
 input = STDIN.read
 
-#read passing dynamo node checks (alive nodes) to get vm ip:port XXX .. http://localhost:8500/v1/health/service/rails-image-3000?passing
-url = 'http://localhost:8500/v1/health/service/rails-image-3000?passing'
+#read passing dynamo node checks (alive nodes) to get vm ip:port XXX .. http://localhost:8500/v1/health/service/rails-webapp?passing
+url = 'http://localhost:8500/v1/health/service/rails-webapp?passing'
 uri = URI.parse(url)
 http = Net::HTTP.new(uri.host, uri.port)
 request = Net::HTTP::Get.new(uri.request_uri)
@@ -20,7 +20,7 @@ IO.write('/tmp/watches.log', "Response: "+response.body+"\n", mode: 'a')
 checks = JSON.parse(response.body)
 checks.each do |check|
 #parse ip:port from check response - "Output":"HTTP GET http://192.168.99.102:19305: 200 OK 
-	output = check["Output"]
+	output = check["Checks"][0]["Output"]
 	ip_port = output.split(' ')[2][0..-2]
 	if ip_port.start_with?('http')
 		#contact..

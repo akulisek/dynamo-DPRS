@@ -133,3 +133,9 @@ TODO:
 metrics (zabbix?)  
 ELK graphs  
 GUI  
+
+### 16.5
+We can finally say that we have successfully implemented DynamoDB with all it's key features: consistent hashing, vector clocks, replication and fault tolerance. The only few things left undone are integration of monitoring platform (Zabbix for example) and advanced ELK graphs for better visualization of system activity.
+
+TODO:  
+metrics (zabbix?)  

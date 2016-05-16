@@ -78,3 +78,11 @@ vector clocks
 metrics (zabbix?)
 ELK graphs
 Consul broadcasts
+
+### 14.5
+Implemented quorum and replication of hash keys across nodes. Whenever node fails / new one registers to network, others acclimatize. New node first gets all the data he will be responsible for after registering to network and afterwards finally joins the network. Consul registers a change of DynamoDB configuration in it's key-value storage and broadcasts all nodes. They then update their data, replicate what is new, delete what is old and not needed of them anymore and adjust to changes. If quorum requirements coudln't be satisfied user gets notified.
+
+TODO:
+vector clocks
+metrics (zabbix?)
+ELK graphs

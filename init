@@ -32,12 +32,9 @@ eval $(docker-machine env $DS_VM)
 
 #run consul docker container 
 docker build -t $SD_IMAGE ./Consul/
-docker run -d -p "8400:8400" -p "8500:8500" -p "8600:53/udp"  --name $SD $SD_IMAGE -server -bootstrap -ui-dir /ui
+docker run -d -p "8400:8400" -p "8500:8500" -p "8600:53/udp"  --name $SD $SD_IMAGE -server -bootstrap -ui-dir /ui 
 
 DS_IP=$(docker-machine ip $DS_VM)
-
-#initialize empty dynamo k-v storage in consul
-curl -X PUT -H "Content-Type: application/json" -d '{}' http://$DS_IP:8500/v1/kv/docker_nodes
 
 #run new virtual machines swarm and host
 docker-machine create -d virtualbox --swarm --swarm-master --swarm-discovery="consul://$DS_IP:8500" --engine-opt="cluster-store=consul://$DS_IP:8500" --engine-opt="cluster-advertise=eth1:2376" $VM_1 
@@ -46,7 +43,7 @@ docker-machine create -d virtualbox --swarm --swarm-discovery="consul://$DS_IP:8
 
 
 #set overlayer network and run nginx
-eval $(docker-machine env $VM_1)
+eval $(docker-machine env --swarm $VM_1)
 docker network create --subnet=$NETWORK -d overlay $NETWORK_NAME 
 docker run -d -v /var/run/docker.sock:/tmp/docker.sock --net=$NETWORK_NAME -h registrator --name registratorSW1 kidibox/registrator -internal consul://$DS_IP:8500
 docker build -t ng --build-arg CONSUL=$(docker-machine ip $DS_VM) ./nginx/
@@ -97,6 +94,9 @@ docker run  -itd -p 514/udp -p 514/tcp -p 8080 --net=$NETWORK_NAME --name "$NODE
 docker run  -itd -p 514/udp -p 514/tcp -p 8080 --net=$NETWORK_NAME --name "$NODE"2 --env="constraint:node==$VM_2" -e CONSUL_IP=$DS_IP $NODE_IMAGE 
 docker run  -itd -p 514/udp -p 514/tcp -p 8080 --net=$NETWORK_NAME --name "$NODE"3 --env="constraint:node==$VM_2" -e CONSUL_IP=$DS_IP $NODE_IMAGE 
 
+#initialize empty dynamo k-v storage in consul
+curl -X PUT -H "Content-Type: application/json" -d '{}' http://$DS_IP:8500/v1/kv/docker_nodes
+
 #run rails webapps
 docker build -t $RAILS_NODE_IMAGE ./rails-node-app/
 docker run -itd -p 3000 --net="$NETWORK_NAME" --name "$RAILS_NODE"1 --env="constraint:node==$VM_2" -e CONSUL_IP=$DS_IP -e REPLICATION=$REPLICATION -e DYNAMO_MAX_KEY=$DYN_MAX_KEY $RAILS_NODE_IMAGE
@@ -106,8 +106,13 @@ docker run -itd -p 3000 --net="$NETWORK_NAME" --name "$RAILS_NODE"4 --env="const
 
 #automatically register nodes to consul
 echo "waiting for containers to initialize..."
-sleep 10
+sleep 15
 curl http://$(docker-machine ip $VM_2):$(docker ps | grep "$RAILS_NODE"1 | tr -s " " | cut -d" " -f16 | cut -d: -f2 | cut -d"-" -f1)/node/register_to_service_discovery
 curl http://$(docker-machine ip $VM_2):$(docker ps | grep "$RAILS_NODE"2 | tr -s " " | cut -d" " -f16 | cut -d: -f2 | cut -d"-" -f1)/node/register_to_service_discovery
 curl http://$(docker-machine ip $VM_2):$(docker ps | grep "$RAILS_NODE"3 | tr -s " " | cut -d" " -f16 | cut -d: -f2 | cut -d"-" -f1)/node/register_to_service_discovery
 curl http://$(docker-machine ip $VM_2):$(docker ps | grep "$RAILS_NODE"4 | tr -s " " | cut -d" " -f16 | cut -d: -f2 | cut -d"-" -f1)/node/register_to_service_discovery
+
+curl http://$(docker-machine ip $VM_2):$(docker ps | grep "$RAILS_NODE"1 | tr -s " " | cut -d" " -f16 | cut -d: -f2 | cut -d"-" -f1)/node/update_configuration 
+curl http://$(docker-machine ip $VM_2):$(docker ps | grep "$RAILS_NODE"2 | tr -s " " | cut -d" " -f16 | cut -d: -f2 | cut -d"-" -f1)/node/update_configuration 
+curl http://$(docker-machine ip $VM_2):$(docker ps | grep "$RAILS_NODE"3 | tr -s " " | cut -d" " -f16 | cut -d: -f2 | cut -d"-" -f1)/node/update_configuration 
+curl http://$(docker-machine ip $VM_2):$(docker ps | grep "$RAILS_NODE"4 | tr -s " " | cut -d" " -f16 | cut -d: -f2 | cut -d"-" -f1)/node/update_configuration 

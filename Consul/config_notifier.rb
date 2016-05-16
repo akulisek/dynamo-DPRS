@@ -9,25 +9,24 @@ IO.write('/tmp/watches.log', "config_notifier called\n", mode: 'a')
 #read stdin, unused
 input = STDIN.read
 
-#read passing dynamo node checks (alive nodes) to get vm ip:port XXX .. http://localhost:8500/v1/health/service/rails-webapp?passing
-url = 'http://localhost:8500/v1/health/service/rails-webapp?passing'
+#http://localhost:8500/v1/catalog/service/rails-webapp
+url = 'http://localhost:8500/v1/catalog/service/rails-webapp'
 uri = URI.parse(url)
 http = Net::HTTP.new(uri.host, uri.port)
 request = Net::HTTP::Get.new(uri.request_uri)
 response = http.request(request)
 IO.write('/tmp/watches.log', "Response: "+response.body+"\n", mode: 'a')
 
-checks = JSON.parse(response.body)
-checks.each do |check|
-#parse ip:port from check response - "Output":"HTTP GET http://192.168.99.102:19305: 200 OK
-	output = check["Checks"][0]["Output"]
-	if output.empty? || !(output.start_with?('HTTP GET'))
+services = JSON.parse(response.body)
+services.each do |service|
+	output = service["ServiceTags"]
+	if output.empty?
 			next
 	end
-	ip_port = output.split(' ')[2][0..-2]
-	if ip_port.start_with?('http')
+	ip_port = output.first
+	if ip_port.include? ":"
 		#contact..
-		url = ip_port+'/node/update_configuration'
+		url = 'http://'+ip_port.to_s+'/node/update_configuration'
 		uri = URI.parse(url)
 		http = Net::HTTP.new(uri.host, uri.port)
 		request = Net::HTTP::Get.new(uri.request_uri)

@@ -26,6 +26,8 @@ class NodeController < ApplicationController
   end
 
   def read_key_value
+    log_message('Setting correlation_id: ' + request.headers['HTTP_CORRELATION_ID'].to_s)
+    params[:correlation_id] = request.headers['HTTP_CORRELATION_ID'].to_s
     if can_serve_request?(params[:key])
       if params[:coordinated]
         log_message('Reading key, request is coordinated:'+params[:key])

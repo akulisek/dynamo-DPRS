@@ -9,6 +9,7 @@ Rails.application.routes.draw do
   get 'node/get_all_data' => 'node#get_all_data', as: :get_all_data, :defaults => { :format => 'json' }
   get 'node/get_data_for_range' => 'node#get_data_for_range', as: :get_data_for_range, :defaults => { :format => 'json' }
   get 'node/register_to_service_discovery' => 'node#register_to_service_discovery', as: :register_to_service_discovery, :defaults => { :format => 'json' }
+  get 'node/health' => 'node#health', as: :GET_health, :defaults => { :format => 'json' }
 
  # The priority is based upon order of creation: first created -> highest priority.
   # See how all your routes lay out with "rake routes".

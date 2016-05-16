@@ -85,7 +85,7 @@ docker run -itd -p $PORT:3000 --net="$NETWORK_NAME" --name "$RAILS_NODE$ID_CONTA
 
 OVER_IP=$(docker exec  $RAILS_NODE$ID_CONTAINER ip addr| grep "inet "| grep "192.168"| tr -s "/" |cut -d "/" -f1|tr -s " "|cut -d " " -f3)
 
-json="{ \"ID\": \"$UUID\", \"Name\": \"$RAILS_NODE\", \"Address\": \"$OVER_IP\", \"Port\": 3000, \"EXT_IP\": \"$IP:$PORT\", \"tags\":[\"$IP:$PORT\"], \"check\": { \"name\": \"web-check\",  \"http\": \"http://$IP:$PORT\", \"interval\": \"10s\", \"timeout\": \"5s\", \"status\": \"passing\"}}"
+json="{ \"ID\": \"$UUID\", \"Name\": \"$RAILS_NODE\", \"Address\": \"$OVER_IP\", \"Port\": 3000, \"EXT_IP\": \"$IP:$PORT\", \"tags\":[\"$IP:$PORT\"], \"check\": { \"name\": \"web-check\",  \"http\": \"http://$IP:$PORT/node/health\", \"interval\": \"10s\", \"timeout\": \"5s\", \"status\": \"passing\"}}"
 
 sleep 15
 

@@ -15,6 +15,12 @@ class NodeController < ApplicationController
     logger.warn 'Dynamo nodes: ' + @@dynamo_nodes.to_s
   end
 
+  def health
+    respond_to do |format|
+      format.json { render :json => { :response => 'Hi, I am fine, no worries!' } }
+    end
+  end
+
   def read_key_vector_clocks key
     response = @@key_value_storage[key]
     if response.nil?

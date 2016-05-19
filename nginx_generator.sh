@@ -51,6 +51,7 @@ ID_CONTAINER=$[RANDOM % 10 + 1]
 UUID=$(uuidgen)
 IP=$(docker-machine ip $VM_1)
 echo "tu3"
+eval $(docker-machine env $VM_1)
 docker run -itd -p 80:80 --name=$PROXY$ID_CONTAINER --net=$NETWORK_NAME --env="constraint:node==$VM_1" ng
 echo "tu"
 json="{ \"ID\": \"$UUID\", \"Name\": \"$PROXY\", \"Address\": \"$IP\", \"Port\": 80, \"check\": { \"name\": \"web-proxy\",  \"http\": \"http://$IP:80/health/\", \"interval\": \"10s\", \"timeout\": \"5s\", \"status\": \"passing\"}}"

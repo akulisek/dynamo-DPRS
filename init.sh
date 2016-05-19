@@ -46,6 +46,7 @@ docker-machine create -d virtualbox --swarm --swarm-discovery="consul://$DS_IP:8
 #set overlayer network and run nginx
 eval $(docker-machine env --swarm $VM_1)
 docker network create --subnet=$NETWORK -d overlay $NETWORK_NAME 
+eval $(docker-machine env $VM_1)
 docker build -t ng --build-arg CONSUL=$(docker-machine ip $DS_VM) ./nginx/
 ./nginx_generator.sh -vm $VM_1 -ds $DS_IP -name "$PROXY" 
 

@@ -1,5 +1,5 @@
 # Dynamo
-Repository for FIIT STU class (DPRS) project
+Class (Distributed program systems) project - clone of DynamoDB created at FIIT STU
 
 ## Used technologies
 
@@ -20,7 +20,7 @@ Repository for FIIT STU class (DPRS) project
 </p>
 
 ## Setting up the project
-Run `$ bash init.sh` which will initialize all the necessary docker machines and containers for you. DynamoDB will consist of 3 Ruby on Rails nodes by default. 
+Run `$ bash init.sh` to initialize all the necessary docker machines and containers. Our DynamoDB consists of 3 Ruby on Rails nodes by default. We strongly advise you to maintain at least 3 nodes in your system configuration as we have not considered DynamoDB to work in other circumstances for the purposes of the project.
 
 ### Find out about your IPs
 * NGinx (proxy): `$ docker-machine ip sm-docker-0`
@@ -35,7 +35,7 @@ Run `$ bash init.sh` which will initialize all the necessary docker machines and
 If you wish to remove the whole project from your machine feel free to `$ bash uninstall`. This will remove all the docker machines we have created for you with the `init` script automatically.
 
 ## Adding DynamoDB container
-If you want to add another RoR container for your DynamoDB, run `$ bash add_dynamo_node $VM_NAME $ROR_NODE_ID`. VM_NAME should be a valid docker-machine name of the machine you want to run the container on and ROR_NODE_ID should be an unused identified for a RoR container.
+If you want to add another RoR container for your DynamoDB, run `$ bash rails_app_gener.sh -vm $VM_NAME -ds $CONSUL_IP`. VM_NAME should be a valid docker-machine name of the machine you want to run the container on and $CONSUL_IP should be an IP address of the machine that runs service discovery.
 
 ## Removing DynamoDB containers
 If you want to keep the machines and remove all the DynamoDB containers created by `init` or you without screwing up the swarm, execute `$ bash remove_dynamo_containers` and it will do the trick for you.
@@ -47,7 +47,7 @@ This is what the GUI looks like:
 
 
 ## API
-There are two main functions of the DynamoDB: read and write
+There are two main functions of the DynamoDB: read and write data.
 ### Read values for given key
 GET `http://proxy_ip/node/read_key?&key=12345` for reading values of key = 12345. 
 If you wish to specify read quorum add another parameter: `http://proxy_ip/node/read_key?&key=12345&read_quorum=2`

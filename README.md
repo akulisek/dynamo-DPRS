@@ -9,10 +9,10 @@ Class (Distributed program systems) project - clone of DynamoDB created at FIIT 
   </a>
 <br>
   <a href="https://www.nginx.com/resources/wiki/">
-    <img src="https://community.logentries.com/wp-content/uploads/2014/11/nginx-pack-icon.png" alt="NGINX"/>
+    <img src="https://cdn.wp.nginx.com/wp-content/themes/nginx-theme/assets/img/logo.png" alt="NGINX" width="242"/>
   </a>
   <a href="https://www.elastic.co/webinars/introduction-elk-stack">
-    <img src="https://raw.githubusercontent.com/blacktop/docker-elk/master/docs/elk-logo.png" alt="ELK stack"/>
+    <img src="https://static-www.elastic.co/assets/blt45b0886c90beceee/logo-elastic.svg?q=200" alt="ELK stack" width="242"/>
   </a>
   <a href="https://rubyonrails.org">
     <img src="http://rubyonrails.org/images/rails-logo.svg" alt="Ruby on Rails" width="242"/>
